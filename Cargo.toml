@@ -1,0 +1,12 @@
+[package]
+name = "fdh-rs"
+version = "0.1.0"
+authors = ["phayes <patrick.d.hayes@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+digest = "0.8.0"
+
+[dev-dependencies]
+sha2 = "0.8.0"
+hex = "0.3.2"
