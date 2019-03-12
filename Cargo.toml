@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 digest = "0.8.0"
+num = "0.2" 
 
 [dev-dependencies]
 sha2 = "0.8.0"

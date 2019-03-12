@@ -1,16 +1,19 @@
 pub use digest::{VariableOutput, Input, Reset};
 use digest::Digest;
 
+use num::bigint::BigUint;
+use num::integer::Integer;
+use num::traits::FromPrimitive;
+
 #[derive(Clone)]
 pub struct FullDomainHash<H: Digest> {
     output_size: usize,
-    inner: Vec<H>
+    inner: Vec<H>,
+    initial_count: u8,
 }
 
-
-impl<H: Digest> VariableOutput for FullDomainHash<H> {
-
-    fn new(output_size: usize) -> Result<Self, digest::InvalidOutputSize> {
+impl<H: Digest> FullDomainHash<H> {
+    pub fn with_initial_count(output_size: usize, initial_count: u8) -> Result<Self, digest::InvalidOutputSize> {
         let mut num_inner = output_size / H::output_size();
 
         // If our output size does not fit nicely into H::output_size(), 
@@ -33,8 +36,16 @@ impl<H: Digest> VariableOutput for FullDomainHash<H> {
 
         return Ok(FullDomainHash {
             output_size: output_size,
-            inner: inner
+            inner: inner,
+            initial_count: initial_count
         });
+    }
+}
+
+impl<H: Digest> VariableOutput for FullDomainHash<H> {
+
+    fn new(output_size: usize) -> Result<Self, digest::InvalidOutputSize> {
+        FullDomainHash::with_initial_count(output_size, 0)
     }
 
     fn output_size(&self) -> usize {
@@ -50,10 +61,11 @@ impl<H: Digest> VariableOutput for FullDomainHash<H> {
         for (i, mut inner_hash) in self.inner.drain(..).enumerate() {
 
             // Append the final x00, x01, x02 etc.
-            let append = i as u8;
+            let append = i as u8 + self.initial_count;
             inner_hash.input([append]);
 
             // Trucate the final inner if things don't fit nicely.
+            // This is equivilent to shifting out exessive bits.
             if truncate_final && i == (len -1) {
                 let remainder = self.output_size % H::output_size();
                 buf.extend_from_slice(&inner_hash.result().as_slice()[..remainder]);
@@ -82,6 +94,20 @@ impl<H: Digest> Reset for FullDomainHash<H> {
             inner.push(H::new());
         }
         self.inner = inner;
+    }
+}
+
+fn filtered_digest<H: Digest> (n: &BigUint) -> Vec<u8> {
+    let c = 0;
+    loop {
+        // TODO: double-check we have a good sized n.
+        let mut hasher = FullDomainHash::<H>::with_initial_count(n.bits() / 8, c).unwrap();
+        hasher.input(n.to_bytes_be());
+        let result = hasher.vec_result();
+        let result_uint = BigUint::from_bytes_be(&result);
+        if result_uint.gcd(n) == BigUint::from_i8(1).unwrap() {
+            return result;
+        }
     }
 }
 
