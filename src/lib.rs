@@ -61,7 +61,7 @@ impl<H: Digest> VariableOutput for FullDomainHash<H> {
         for (i, mut inner_hash) in self.inner.drain(..).enumerate() {
 
             // Append the final x00, x01, x02 etc.
-            let append = i as u8 + self.initial_count;
+            let append = self.initial_count.wrapping_add(i as u8);
             inner_hash.input([append]);
 
             // Trucate the final inner if things don't fit nicely.
@@ -94,20 +94,6 @@ impl<H: Digest> Reset for FullDomainHash<H> {
             inner.push(H::new());
         }
         self.inner = inner;
-    }
-}
-
-fn filtered_digest<H: Digest> (n: &BigUint) -> Vec<u8> {
-    let c = 0;
-    loop {
-        // TODO: double-check we have a good sized n.
-        let mut hasher = FullDomainHash::<H>::with_initial_count(n.bits() / 8, c).unwrap();
-        hasher.input(n.to_bytes_be());
-        let result = hasher.vec_result();
-        let result_uint = BigUint::from_bytes_be(&result);
-        if result_uint.gcd(n) == BigUint::from_i8(1).unwrap() {
-            return result;
-        }
     }
 }
 

@@ -12,11 +12,12 @@ Example
 -------
 ```rust
   use sha2::Sha256;
-  use hex;
   use fdh::{FullDomainHash, VariableOutput, Input}
 
   // Expand SHA256 from 256 bits to 1024 bits.
-  let mut hasher = FullDomainHash::<Sha256>::new(1024 / 8)?;
+  let output_bits = 1024;
+  let output_bytes = 1024 / 8;
+  let mut hasher = FullDomainHash::<Sha256>::new(output_bytes)?;
   hasher.input(b"ATTACK AT DAWN");
   let result = hasher.vec_result();
 ```
