@@ -23,3 +23,30 @@ Example
   hasher.input(b"ATTACK AT DAWN");
   let result = hasher.vec_result();
 ```
+
+`no_std`
+-------
+//! 
+//! This crate also supports `no_std`. 
+//! 
+//! ```rust
+#![no_std]
+use sha2::Sha256;
+use fdh::{FullDomainHash, Input, ExtendableOutput, XofReader};
+   
+// Expand SHA256 from 256 bits to 512 bits (and beyond!), reading it in 16 byte chunks.
+let mut hasher = FullDomainHash::<Sha256>::default();
+hasher.input(b"ATTACK AT DAWN");
+let mut reader = hasher.xof_result();
+let mut read_buf = <[u8; 16]>::default();
+
+// Read the first 16 bytes into read_buf
+reader.read(&mut read_buf);
+
+// Read the second 16 bytes into read_buf
+reader.read(&mut read_buf);
+
+// If we want, we can just keep going, reading as many bits as we want indefiniitely.
+reader.read(&mut read_buf);
+reader.read(&mut read_buf);
+```

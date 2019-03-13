@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/phayes/fdh-rs"
 readme = "README.md"
 keywords = ["hash", "crypto", "digest"]
-categories = ["cryptography"]
+categories = ["cryptography", "no-std"]
 
 [dependencies]
 digest = "0.8.0"
