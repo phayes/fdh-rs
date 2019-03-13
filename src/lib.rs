@@ -1,42 +1,24 @@
 pub use digest::{VariableOutput, Input, Reset};
 use digest::Digest;
 
-use num::bigint::BigUint;
-use num::integer::Integer;
-use num::traits::FromPrimitive;
-
 #[derive(Clone)]
 pub struct FullDomainHash<H: Digest> {
     output_size: usize,
-    inner: Vec<H>,
+    inner_hash: H,
     initial_count: u8,
 }
 
-impl<H: Digest> FullDomainHash<H> {
+impl<H: Digest + Clone> FullDomainHash<H> {
     pub fn with_initial_count(output_size: usize, initial_count: u8) -> Result<Self, digest::InvalidOutputSize> {
-        let mut num_inner = output_size / H::output_size();
-
-        // If our output size does not fit nicely into H::output_size(), 
-        // then add an additional inner hash to fit the remainder.
-        // When getting the result, this final inner will be truncated.
-        if output_size % H::output_size() != 0 {
-            num_inner += 1;
-        }
-
-        let mut inner = Vec::with_capacity(num_inner);
-        for _ in 0..num_inner {
-            inner.push(H::new());
-        }
-
         return Ok(FullDomainHash {
             output_size: output_size,
-            inner: inner,
+            inner_hash: H::new(),
             initial_count: initial_count
         });
     }
 }
 
-impl<H: Digest> VariableOutput for FullDomainHash<H> {
+impl<H: Digest + Clone> VariableOutput for FullDomainHash<H> {
 
     fn new(output_size: usize) -> Result<Self, digest::InvalidOutputSize> {
         FullDomainHash::with_initial_count(output_size, 0)
@@ -47,47 +29,38 @@ impl<H: Digest> VariableOutput for FullDomainHash<H> {
     }
 
     fn variable_result<F: FnOnce(&[u8])>(mut self, f: F) {
-        // Check if we need to truncate the final inner
-        let truncate_final = self.output_size % H::output_size() != 0;
-        let len = self.inner.len();
+        let num_inner = self.output_size / H::output_size();
+        let remainder = self.output_size % H::output_size();
 
         let mut buf = Vec::<u8>::with_capacity(self.output_size);
-        for (i, mut inner_hash) in self.inner.drain(..).enumerate() {
+
+        for i in 0..num_inner {
+            let mut inner_hash = self.inner_hash.clone();
 
             // Append the final x00, x01, x02 etc.
             let append = self.initial_count.wrapping_add(i as u8);
             inner_hash.input([append]);
+            buf.extend_from_slice(inner_hash.result().as_slice());
+        }
 
-            // Trucate the final inner if things don't fit nicely.
-            // This is equivilent to shifting out exessive bits.
-            if truncate_final && i == (len -1) {
-                let remainder = self.output_size % H::output_size();
-                buf.extend_from_slice(&inner_hash.result().as_slice()[..remainder]);
-            }
-            else {
-                buf.extend_from_slice(inner_hash.result().as_slice());
-            }
+        if remainder != 0 {
+            let append = self.initial_count.wrapping_add(num_inner as u8);
+            self.inner_hash.input([append]);
+            buf.extend_from_slice(&self.inner_hash.result().as_slice()[..remainder]);
         }
         f(buf.as_slice());
     }
 }
 
-impl<H: Digest> Input for FullDomainHash<H> {
+impl<H: Digest + Clone> Input for FullDomainHash<H> {
     fn input<B: AsRef<[u8]>>(&mut self, data: B) {
-        for inner_hash in self.inner.iter_mut() {
-            inner_hash.input(data.as_ref().clone());
-        }
+        self.inner_hash.input(data);
     }
 }
 
-impl<H: Digest> Reset for FullDomainHash<H> {
+impl<H: Digest + Clone> Reset for FullDomainHash<H> {
     fn reset(&mut self) {
-        let num_inner = self.output_size / H::output_size();
-        let mut inner = Vec::with_capacity(num_inner);
-        for _ in 0..num_inner {
-            inner.push(H::new());
-        }
-        self.inner = inner;
+        self.inner_hash.reset();
     }
 }
 
