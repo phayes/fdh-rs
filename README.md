@@ -26,10 +26,10 @@ Example
 
 `no_std`
 -------
-//! 
-//! This crate also supports `no_std`. 
-//! 
-//! ```rust
+
+This crate also supports `no_std`. 
+
+```rust
 #![no_std]
 use sha2::Sha256;
 use fdh::{FullDomainHash, Input, ExtendableOutput, XofReader};
