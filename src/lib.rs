@@ -23,12 +23,6 @@ impl<H: Digest> FullDomainHash<H> {
             num_inner += 1;
         }
 
-        // Because we append a u8 to each message, maximum inner hashes is 256
-        // This is 256 times the size of the orignal hash size
-        if num_inner > 256 {
-             return Err(digest::InvalidOutputSize);
-        }
-
         let mut inner = Vec::with_capacity(num_inner);
         for _ in 0..num_inner {
             inner.push(H::new());
