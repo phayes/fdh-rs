@@ -3,10 +3,27 @@ name = "fdh"
 version = "0.1.0"
 authors = ["phayes <patrick.d.hayes@gmail.com>"]
 edition = "2018"
+description = "Full Domain Hash (FDH) for extending the size of a hash digest to an arbitrary length"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/phayes/fdh-rs"
+readme = "README.md"
+keywords = ["hash", "crypto", "digest"]
+categories = ["cryptography"]
 
 [dependencies]
 digest = "0.8.0"
+generic-array = "0.12.0"
 
 [dev-dependencies]
 sha2 = "0.8.0"
+sha-1 = "0.8.1"
 hex = "0.3.2"
+
+[badges]
+travis-ci = { repository = "phayes/fdh-rs", branch = "master" }
+codecov = { repository = "phayes/fdh-rs", branch = "master", service = "github" }
+maintenance = { status = "actively-developed" }
+
+[features]
+default = ["std"]
+std = ["digest/std"]
