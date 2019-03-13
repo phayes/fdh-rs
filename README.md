@@ -12,7 +12,7 @@ Example
 -------
 ```rust
   use sha2::Sha256;
-  use fdh::{FullDomainHash, VariableOutput, Input}
+  use fdh::{FullDomainHash, VariableOutput, Input};
 
   // Expand SHA256 from 256 bits to 1024 bits.
   let output_bits = 1024;
