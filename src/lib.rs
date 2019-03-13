@@ -42,7 +42,7 @@
 //! // Read the second 16 bytes into read_buf
 //! reader.read(&mut read_buf);
 //! 
-//! // If we want, we can just keep going, reading as many bits as we want indefiniitely.
+//! // If we want, we can just keep going, reading as many bits as we want indefinitely.
 //! reader.read(&mut read_buf);
 //! reader.read(&mut read_buf);
 //! ```
