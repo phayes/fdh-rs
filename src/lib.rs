@@ -59,26 +59,26 @@ extern crate std;
 pub struct FullDomainHash<H: Digest> {
     output_size: usize,
     inner_hash: H,
-    current_count: u8,
+    current_suffix: u8,
     read_buf: GenericArray<u8, H::OutputSize>, // Used for digest::XofReader
     read_buf_pos: usize,                       // Used for digest::XofReader
 }
 
 impl<H: Digest + Clone> FullDomainHash<H> {
-    /// Create new hasher instance with the given output size and intial count.
+    /// Create new hasher instance with the given output size and intial suffix.
     ///
-    /// The final hash will be `FDH(M) = HASH(M||C) || HASH(M||C+1) || ... || HASH(M||C+N)`
-    /// where `HASH` is any hash function, `M` is the message, `||` denotes concatenation, `C` is the initial_count, and `N` is the number of cycles requires for the output length.
+    /// The final hash will be `FDH(M) = HASH(M||S) || HASH(M||S+1) || ... || HASH(M||S+N)`
+    /// where `HASH` is any hash function, `M` is the message, `||` denotes concatenation, `S` is `initial_suffix`, and `N` is the number of cycles requires for the output length.
     ///
-    /// If `initial_count` is large enough, it will "wrap around" from `xFF` to `x00` using modular addition.
-    pub fn with_initial_count(
+    /// If `initial_suffix` is large enough, it will "wrap around" from `xFF` to `x00` using modular addition.
+    pub fn with_initial_suffix(
         output_size: usize,
-        initial_count: u8,
+        initial_suffix: u8,
     ) -> Result<Self, digest::InvalidOutputSize> {
         Ok(FullDomainHash {
             output_size,
             inner_hash: H::new(),
-            current_count: initial_count,
+            current_suffix: initial_suffix,
             read_buf: GenericArray::default(),
             read_buf_pos: 0,
         })
@@ -91,13 +91,13 @@ impl<H: Digest + Clone> FullDomainHash<H> {
             let mut inner_hash = self.inner_hash.clone();
 
             // Append the final x00, x01, x02 etc.
-            inner_hash.input([self.current_count]);
+            inner_hash.input([self.current_suffix]);
 
             // Fill the buffer
             self.read_buf = inner_hash.result();
 
-            // Increment the current count
-            self.current_count = self.current_count.wrapping_add(1);
+            // Increment the current suffix
+            self.current_suffix = self.current_suffix.wrapping_add(1);
         }
     }
 
@@ -117,7 +117,7 @@ impl<H: Digest + Clone> FullDomainHash<H> {
 impl<H: Digest + Clone> VariableOutput for FullDomainHash<H> {
     /// Create new hasher instance with the given output size.
     fn new(output_size: usize) -> Result<Self, digest::InvalidOutputSize> {
-        FullDomainHash::with_initial_count(output_size, 0)
+        FullDomainHash::with_initial_suffix(output_size, 0)
     }
 
     /// Get output size of the hasher instance.
@@ -268,12 +268,12 @@ mod tests {
         let result = hex::encode(hasher.vec_result());
         assert_eq!(result, "015d53c7925b4434f00286fe2f0eb28378a49300b159b896eb2356a7c4de95f158617fec3b813f834cd86ab0dd26b971c46b7ede451b490279628a265edf0a10691095675808b47c0add4300b3181a31109cbc31a945d05562ceb6cca0fea834d9c456fe1abf34a5a775ed572ce571b1dcca03b984102e666e9ab876876fb3af");
 
-        // # Expand SHA256 hash of "ATTACK AT DAWN" to 1024 bits, using 254 as the initial count.
+        // # Expand SHA256 hash of "ATTACK AT DAWN" to 1024 bits, using 254 as the initial suffix.
         // echo -n -e 'ATTACK AT DAWN\xFE' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
         // echo -n -e 'ATTACK AT DAWN\xFF' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
         // echo -n -e 'ATTACK AT DAWN\x00' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
         // echo -n -e 'ATTACK AT DAWN\x01' | shasum -a 256 | cut -d ' ' -f 1
-        let mut hasher = FullDomainHash::<Sha256>::with_initial_count(1024 / 8, 254).unwrap();
+        let mut hasher = FullDomainHash::<Sha256>::with_initial_suffix(1024 / 8, 254).unwrap();
         hasher.input(b"ATTACK AT DAWN");
         let result = hex::encode(hasher.vec_result());
         assert_eq!(result, "8b41c68cc83acfa422fb6a0c61c5c7a14eef381768d37375c78caf61d76e62b4a93a562946a7378fc3eca407eb44e81fef2be026e1ee340ba85a06f9b2e4fe84015d53c7925b4434f00286fe2f0eb28378a49300b159b896eb2356a7c4de95f158617fec3b813f834cd86ab0dd26b971c46b7ede451b490279628a265edf0a10");
