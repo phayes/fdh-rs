@@ -32,7 +32,7 @@ Example
 `no_std`
 -------
 
-This crate also supports `no_std`. 
+This crate also supports `no_std`, so it can be used in embedded or other settings with no allocation.
 
 ```rust
 #![no_std]
