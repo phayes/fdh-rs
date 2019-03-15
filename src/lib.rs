@@ -74,23 +74,20 @@ pub enum Error {
 }
 
 impl<H: Digest + Clone> FullDomainHash<H> {
-    /// Create new hasher instance with the given output size and intial suffix.
+    /// Create new hasher instance with the given output size and initialization vector.
     ///
-    /// The final hash will be `FDH(M) = HASH(M||S) || HASH(M||S+1) || ... || HASH(M||S+N)`
-    /// where `HASH` is any hash function, `M` is the message, `||` denotes concatenation, `S` is `initial_suffix`, and `N` is the number of cycles requires for the output length.
+    /// The final hash will be `FDH(M) = HASH(M||IV) || HASH(M||IV+1) || ... || HASH(M||IV+N)`
+    /// where `HASH` is any hash function, `M` is the message, `||` denotes concatenation, `IV` is the initialization vector, and `N` is the number of cycles requires for the output length.
     ///
-    /// If `initial_suffix` is large enough, it will "wrap around" from `xFF` to `x00` using modular addition.
-    pub fn with_initial_suffix(
-        output_size: usize,
-        initial_suffix: u32,
-    ) -> Result<Self, digest::InvalidOutputSize> {
-        Ok(FullDomainHash {
+    /// If the initialization vector is large enough, it will "wrap around" from `xFFxFFxFFxFF` to `x00x00x00x00` using modular addition.
+    pub fn with_iv(output_size: usize, iv: u32) -> Self {
+        FullDomainHash {
             output_size,
             inner_hash: H::new(),
-            current_suffix: initial_suffix,
+            current_suffix: iv,
             read_buf: GenericArray::default(),
             read_buf_pos: 0,
-        })
+        }
     }
 
     /// Set the suffix that is appended to the message before hashing.
@@ -132,15 +129,23 @@ impl<H: Digest + Clone> FullDomainHash<H> {
     ///
     /// This is useful when the full-domain-hash needs to be less than some value. For example modulus `n` in RSA-FDH.
     ///  
-    ///  - `initial_suffix` should be randomly generated.
+    ///  - `initial_iv` should be randomly generated.
     ///  - `max` should be the maximum allowed value in big endian format. For an RSA-FDH this would be the modulus `n`.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// let mut hasher = FullDomainHash::<Sha512>::new(64)?;
+    /// hasher.input(b"ATTACKATDAWN");
+    /// let iv: u32 = rng.gen();
+    /// let (digest, iv) = hasher.results_under(iv, priv_key.n())?;
+    /// ```
     #[cfg(feature = "std")]
     pub fn results_under(
         self,
-        initial_suffix: u32,
+        initial_iv: u32,
         max: &num_bigint_dig::BigUint,
     ) -> Result<(std::vec::Vec<u8>, u32), Error> {
-        let current_suffix = initial_suffix;
+        let mut current_suffix = initial_iv;
 
         loop {
             let mut hasher = FullDomainHash {
@@ -155,10 +160,10 @@ impl<H: Digest + Clone> FullDomainHash<H> {
             if &num_bigint_dig::BigUint::from_bytes_be(&res) < max {
                 return Ok((res, current_suffix));
             } else {
-                current_suffix.wrapping_add(1);
+                current_suffix = current_suffix.wrapping_add(1);
 
                 // We've exausted the search space, give up.
-                if current_suffix == initial_suffix {
+                if current_suffix == initial_iv {
                     return Err(Error::NoDigestUnder);
                 }
             }
@@ -170,7 +175,7 @@ impl<H: Digest + Clone> FullDomainHash<H> {
 impl<H: Digest + Clone> VariableOutput for FullDomainHash<H> {
     /// Create new hasher instance with the given output size.
     fn new(output_size: usize) -> Result<Self, digest::InvalidOutputSize> {
-        FullDomainHash::with_initial_suffix(output_size, 0)
+        Ok(FullDomainHash::with_iv(output_size, 0))
     }
 
     /// Get output size of the hasher instance.
@@ -331,13 +336,12 @@ mod tests {
         let result = hex::encode(hasher.vec_result());
         assert_eq!(result, "d06924c6a0fc0f30463308895add96e9f2cf48e477a187d1f4079536276958e53843af10006e0a1da85b70d5bb8be9b29a40667465d771cbac89f671d0b88b31fa91a4c9cdd497c10e32971eceac3a5abeb533f36ba77803bf2247830db07548183421bf034229e7a44424ff02b04e4595a32c916e29e30eedb7d05059bcf852");
 
-        // # Expand SHA256 hash of "ATTACK AT DAWN" to 1024 bits, using 4294967294 as the initial suffix.
+        // # Expand SHA256 hash of "ATTACK AT DAWN" to 1024 bits, using 4294967294 as the initialization vector.
         // echo -n -e 'ATTACK AT DAWN\xFF\xFF\xFF\xFE' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
         // echo -n -e 'ATTACK AT DAWN\xFF\xFF\xFF\xFF' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
         // echo -n -e 'ATTACK AT DAWN\x00\x00\x00\x00' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
         // echo -n -e 'ATTACK AT DAWN\x00\x00\x00\x01' | shasum -a 256 | cut -d ' ' -f 1
-        let mut hasher =
-            FullDomainHash::<Sha256>::with_initial_suffix(1024 / 8, 4294967294).unwrap();
+        let mut hasher = FullDomainHash::<Sha256>::with_iv(1024 / 8, 4294967294);
         hasher.input(b"ATTACK AT DAWN");
         let result = hex::encode(hasher.vec_result());
         assert_eq!(result, "87c26af69c716e524e5600249f049525fa12a273b2ebdc9ee29ae9d004712d13774bebfcb7c362064e64619239060d775e127f2432640125fa6fd34b792b4435d06924c6a0fc0f30463308895add96e9f2cf48e477a187d1f4079536276958e53843af10006e0a1da85b70d5bb8be9b29a40667465d771cbac89f671d0b88b31");
