@@ -50,6 +50,7 @@
 #![no_std]
 use digest::Digest;
 pub use digest::{ExtendableOutput, Input, Reset, VariableOutput, XofReader};
+use failure::Fail;
 use generic_array::GenericArray;
 
 #[cfg(feature = "std")]
@@ -62,6 +63,14 @@ pub struct FullDomainHash<H: Digest> {
     current_suffix: u8,
     read_buf: GenericArray<u8, H::OutputSize>, // Used for digest::XofReader
     read_buf_pos: usize,                       // Used for digest::XofReader
+}
+
+/// Error types
+#[cfg(feature = "std")]
+#[derive(Debug, Fail)]
+pub enum Error {
+    #[fail(display = "fdh: Cannot find intial suffix for a digest less than the desired max.")]
+    NoDigestUnder,
 }
 
 impl<H: Digest + Clone> FullDomainHash<H> {
@@ -82,6 +91,13 @@ impl<H: Digest + Clone> FullDomainHash<H> {
             read_buf: GenericArray::default(),
             read_buf_pos: 0,
         })
+    }
+
+    /// Set the suffix that is appended to the message before hashing.
+    ///
+    /// This is useful when seaching for a hash output that has certain properties (for example is smaller than `n` in an RSA-FDH scheme.)
+    pub fn set_suffix(&mut self, suffix: u8) {
+        self.current_suffix = suffix;
     }
 
     // Utility function for reader
@@ -109,6 +125,43 @@ impl<H: Digest + Clone> FullDomainHash<H> {
             self.read_buf_pos = rhs - (self.read_buf.len() - self.read_buf_pos);
         } else {
             self.read_buf_pos += rhs;
+        }
+    }
+
+    /// Search for a digest value that is numerically less than the provided maximum by iterating over initial suffixes. Return the resulting digest and initialization value.
+    ///
+    /// This is useful when the full-domain-hash needs to be less than some value. For example modulus `n` in RSA-FDH.
+    ///  
+    ///  - `initial_suffix` should be randomly generated.
+    ///  - `max` should be the maximum allowed value in big endian format. For an RSA-FDH this would be the modulus `n`.
+    #[cfg(feature = "std")]
+    pub fn results_under(
+        self,
+        initial_suffix: u8,
+        max: &[u8],
+    ) -> Result<(std::vec::Vec<u8>, u8), Error> {
+        let max = num_bigint::BigUint::from_bytes_be(max);
+        let current_suffix = initial_suffix;
+
+        loop {
+            let mut hasher = FullDomainHash {
+                output_size: self.output_size,
+                inner_hash: self.inner_hash.clone(),
+                current_suffix: current_suffix,
+                read_buf: GenericArray::default(),
+                read_buf_pos: 0,
+            };
+            hasher.set_suffix(current_suffix);
+            let res = VariableOutput::vec_result(hasher);
+            if num_bigint::BigUint::from_bytes_be(&res) < max {
+                return Ok((res, current_suffix));
+            } else {
+                current_suffix.wrapping_add(1);
+
+                if current_suffix == initial_suffix {
+                    return Err(Error::NoDigestUnder);
+                }
+            }
         }
     }
 }
