@@ -52,6 +52,7 @@ use digest::Digest;
 pub use digest::{ExtendableOutput, Input, Reset, VariableOutput, XofReader};
 use failure::Fail;
 use generic_array::GenericArray;
+use num_bigint_dig::BigUint;
 
 #[cfg(feature = "std")]
 extern crate std;
@@ -69,8 +70,8 @@ pub struct FullDomainHash<H: Digest> {
 #[cfg(feature = "std")]
 #[derive(Debug, Fail)]
 pub enum Error {
-    #[fail(display = "fdh: Cannot find IV for a digest less than the desired max.")]
-    NoDigestUnder,
+    #[fail(display = "fdh: Cannot find IV for a digest with the desired range")]
+    NoDigestWithin,
 }
 
 impl<H: Digest + Clone> FullDomainHash<H> {
@@ -118,25 +119,23 @@ impl<H: Digest + Clone> FullDomainHash<H> {
         }
     }
 
-    /// Search for a digest value that is numerically less than the provided maximum by iterating over initial suffixes. Return the resulting digest and initialization value.
+    /// Search for a digest value that is numerically within the provided range by iterating over initial suffixes. Return the resulting digest and initialization value.
     ///
-    /// This is useful when the full-domain-hash needs to be less than some value. For example modulus `n` in RSA-FDH.
-    ///  
-    ///  - `initial_iv` should be randomly generated.
-    ///  - `max` should be the maximum allowed value in big endian format. For an RSA-FDH this would be the modulus `n`.
+    /// This is useful when the full-domain-hash needs to be less than some value, for example modulus `n` in RSA-FDH. `initial_iv` should be randomly generated in most cases.
     ///
     /// # Example
     /// ```rust,compile_fail
     /// let mut hasher = FullDomainHash::<Sha512>::new(64)?;
     /// hasher.input(b"ATTACKATDAWN");
     /// let iv: u8 = rng.gen();
-    /// let (digest, iv) = hasher.results_under(iv, priv_key.n())?;
+    /// let (digest, iv) = hasher.results_within(iv, 0, priv_key.n())?;
     /// ```
     #[cfg(feature = "std")]
-    pub fn results_under(
+    pub fn results_within(
         self,
         initial_iv: u8,
-        max: &num_bigint_dig::BigUint,
+        min: &BigUint,
+        max: &BigUint,
     ) -> Result<(std::vec::Vec<u8>, u8), Error> {
         let mut current_suffix = initial_iv;
 
@@ -150,14 +149,14 @@ impl<H: Digest + Clone> FullDomainHash<H> {
             };
             hasher.current_suffix = current_suffix;
             let res = VariableOutput::vec_result(hasher);
-            if &num_bigint_dig::BigUint::from_bytes_be(&res) < max {
+            if &BigUint::from_bytes_be(&res) < max && &BigUint::from_bytes_be(&res) > min {
                 return Ok((res, current_suffix));
             } else {
                 current_suffix = current_suffix.wrapping_add(1);
 
                 // We've exausted the search space, give up.
                 if current_suffix == initial_iv {
-                    return Err(Error::NoDigestUnder);
+                    return Err(Error::NoDigestWithin);
                 }
             }
         }
@@ -414,6 +413,35 @@ mod tests {
                 0x1a, 0xdf, 0xc3, 0x44, 0xb7, 0x5a, 0xb9, 0xa7, 0x7d, 0x70, 0x74, 0x5f, 0x4e, 0xbb,
                 0x5a, 0x97, 0x3c, 0x5d, 0x1f, 0x1d
             ]
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "std")]
+    fn test_results_within() {
+        use crate::{FullDomainHash, Input, VariableOutput};
+        use num_bigint_dig::BigUint;
+        use num_traits::Num;
+
+        let min = BigUint::from_str_radix(
+            "51683095453715361952842063988888814558178328011011413557662527675023521115731",
+            10,
+        )
+        .unwrap();
+        let max = BigUint::from_str_radix(
+            "63372381656167118369940880608146415619543459354936568979731399163319071519847",
+            10,
+        )
+        .unwrap();
+
+        let mut hasher = FullDomainHash::<Sha256>::new(256 / 8).unwrap();
+        hasher.input(b"ATTACK AT DAWN");
+        let iv = 0;
+        let (result, iv) = hasher.results_within(iv, &min, &max).unwrap();
+        assert_eq!(iv, 20);
+        assert_eq!(
+            hex::encode(result),
+            "88d7143faf611e19119e4d861673e1a7d340686c00af1d8bcf06306bb5154b4d"
         );
     }
 
