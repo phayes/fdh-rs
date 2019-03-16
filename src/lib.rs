@@ -69,7 +69,7 @@ pub struct FullDomainHash<H: Digest> {
 #[cfg(feature = "std")]
 #[derive(Debug, Fail)]
 pub enum Error {
-    #[fail(display = "fdh: Cannot find intial suffix for a digest less than the desired max.")]
+    #[fail(display = "fdh: Cannot find IV for a digest less than the desired max.")]
     NoDigestUnder,
 }
 
@@ -79,7 +79,7 @@ impl<H: Digest + Clone> FullDomainHash<H> {
     /// The final hash will be `FDH(M) = HASH(M||IV) || HASH(M||IV+1) || ... || HASH(M||IV+N)`
     /// where `HASH` is any hash function, `M` is the message, `||` denotes concatenation, `IV` is the initialization vector, and `N` is the number of cycles requires for the output length.
     ///
-    /// If the initialization vector is large enough, it will "wrap around" from `xFFxFFxFFxFF` to `x00x00x00x00` using modular addition.
+    /// If the initialization vector is large enough, it will "wrap around" from `xFF` to `x00` using modular addition.
     pub fn with_iv(output_size: usize, iv: u8) -> Self {
         FullDomainHash {
             output_size,
@@ -88,13 +88,6 @@ impl<H: Digest + Clone> FullDomainHash<H> {
             read_buf: GenericArray::default(),
             read_buf_pos: 0,
         }
-    }
-
-    /// Set the suffix that is appended to the message before hashing.
-    ///
-    /// This is useful when seaching for a hash output that has certain properties (for example is smaller than `n` in an RSA-FDH scheme.)
-    pub fn set_suffix(&mut self, suffix: u8) {
-        self.current_suffix = suffix;
     }
 
     // Utility function for reader
@@ -155,7 +148,7 @@ impl<H: Digest + Clone> FullDomainHash<H> {
                 read_buf: GenericArray::default(),
                 read_buf_pos: 0,
             };
-            hasher.set_suffix(current_suffix);
+            hasher.current_suffix = current_suffix;
             let res = VariableOutput::vec_result(hasher);
             if &num_bigint_dig::BigUint::from_bytes_be(&res) < max {
                 return Ok((res, current_suffix));
