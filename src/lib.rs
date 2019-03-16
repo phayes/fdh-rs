@@ -61,8 +61,8 @@ pub struct FullDomainHash<H: Digest> {
     output_size: usize,
     inner_hash: H,
     current_suffix: u8,
-    read_buf: GenericArray<u8, H::OutputSize>, // Used for digest::XofReader
-    read_buf_pos: usize,                       // Used for digest::XofReader
+    read_buf: GenericArray<u8, H::OutputSize>, // Used for digest::XofReader -- TODO split this out
+    read_buf_pos: usize,                       // Used for digest::XofReader -- TODO split this out
 }
 
 /// Error types
