@@ -2,7 +2,7 @@
 //!
 //! A Full Domain Hash (FDH) is a cryptographic construction that extends the size of a hash digest to an arbitrary length. For example, SHA256 can be expanded to 1024 bits instead of the usual 256 bits.
 //!
-//! We construct an FDH by computing a number of cycles where `cycles=(target length)/(digest length) + 1`. We then compute `FDH(M) = HASH(M||0) || HASH(M||1) || ... || HASH(M||cycles−1)`, where `HASH` is any hash function, `M` is the message, `||` denotes concatenation, and numerical values are `u32`.
+//! We construct an FDH by computing a number of cycles where `cycles=(target length)/(digest length) + 1`. We then compute `FDH(M) = HASH(M||0) || HASH(M||1) || ... || HASH(M||cycles−1)`, where `HASH` is any hash function, `M` is the message, `||` denotes concatenation, and numerical values are single byte `u8`.
 //!
 //! FDHs are usually used with an RSA signature scheme where the target length is the size of the key. See [https://en.wikipedia.org/wiki/Full_Domain_Hash](https://en.wikipedia.org/wiki/Full_Domain_Hash)
 //!
@@ -60,7 +60,7 @@ extern crate std;
 pub struct FullDomainHash<H: Digest> {
     output_size: usize,
     inner_hash: H,
-    current_suffix: u32,
+    current_suffix: u8,
     read_buf: GenericArray<u8, H::OutputSize>, // Used for digest::XofReader
     read_buf_pos: usize,                       // Used for digest::XofReader
 }
@@ -80,7 +80,7 @@ impl<H: Digest + Clone> FullDomainHash<H> {
     /// where `HASH` is any hash function, `M` is the message, `||` denotes concatenation, `IV` is the initialization vector, and `N` is the number of cycles requires for the output length.
     ///
     /// If the initialization vector is large enough, it will "wrap around" from `xFFxFFxFFxFF` to `x00x00x00x00` using modular addition.
-    pub fn with_iv(output_size: usize, iv: u32) -> Self {
+    pub fn with_iv(output_size: usize, iv: u8) -> Self {
         FullDomainHash {
             output_size,
             inner_hash: H::new(),
@@ -93,7 +93,7 @@ impl<H: Digest + Clone> FullDomainHash<H> {
     /// Set the suffix that is appended to the message before hashing.
     ///
     /// This is useful when seaching for a hash output that has certain properties (for example is smaller than `n` in an RSA-FDH scheme.)
-    pub fn set_suffix(&mut self, suffix: u32) {
+    pub fn set_suffix(&mut self, suffix: u8) {
         self.current_suffix = suffix;
     }
 
@@ -104,7 +104,7 @@ impl<H: Digest + Clone> FullDomainHash<H> {
             let mut inner_hash = self.inner_hash.clone();
 
             // Append the final x00, x01, x02 etc.
-            inner_hash.input(u32_to_u8_array(self.current_suffix));
+            inner_hash.input([self.current_suffix]);
 
             // Fill the buffer
             self.read_buf = inner_hash.result();
@@ -136,15 +136,15 @@ impl<H: Digest + Clone> FullDomainHash<H> {
     /// ```rust,compile_fail
     /// let mut hasher = FullDomainHash::<Sha512>::new(64)?;
     /// hasher.input(b"ATTACKATDAWN");
-    /// let iv: u32 = rng.gen();
+    /// let iv: u8 = rng.gen();
     /// let (digest, iv) = hasher.results_under(iv, priv_key.n())?;
     /// ```
     #[cfg(feature = "std")]
     pub fn results_under(
         self,
-        initial_iv: u32,
+        initial_iv: u8,
         max: &num_bigint_dig::BigUint,
-    ) -> Result<(std::vec::Vec<u8>, u32), Error> {
+    ) -> Result<(std::vec::Vec<u8>, u8), Error> {
         let mut current_suffix = initial_iv;
 
         loop {
@@ -269,15 +269,6 @@ impl<H: Digest + Clone> digest::XofReader for FullDomainHash<H> {
     }
 }
 
-// Utility function to go from u32 to [u8; 4]
-fn u32_to_u8_array(x: u32) -> [u8; 4] {
-    let b1: u8 = ((x >> 24) & 0xff) as u8;
-    let b2: u8 = ((x >> 16) & 0xff) as u8;
-    let b3: u8 = ((x >> 8) & 0xff) as u8;
-    let b4: u8 = (x & 0xff) as u8;
-    return [b1, b2, b3, b4];
-}
-
 #[cfg(test)]
 mod tests {
     use hex;
@@ -289,13 +280,13 @@ mod tests {
     fn sha256_std_test() {
         use crate::{FullDomainHash, Input, Reset, VariableOutput};
 
-        // echo -n -e 'ATTACK AT DAWN\x00\x00\x00\x00' | shasum -a 256
+        // echo -n -e 'ATTACK AT DAWN\x00' | shasum -a 256
         let mut hasher = FullDomainHash::<Sha256>::new(256 / 8).unwrap();
         hasher.input(b"ATTACK AT DAWN");
         let result = hex::encode(hasher.vec_result());
         assert_eq!(
             result,
-            "d06924c6a0fc0f30463308895add96e9f2cf48e477a187d1f4079536276958e5"
+            "015d53c7925b4434f00286fe2f0eb28378a49300b159b896eb2356a7c4de95f1"
         );
 
         // Test Reset
@@ -307,44 +298,43 @@ mod tests {
         let result = hex::encode(hasher.vec_result());
         assert_eq!(
             result,
-            "d06924c6a0fc0f30463308895add96e9f2cf48e477a187d1f4079536276958e5"
+            "015d53c7925b4434f00286fe2f0eb28378a49300b159b896eb2356a7c4de95f1"
         );
 
-        // echo -n -e 'ATTACK AT DAWN\x00\x00\x00\x00' | shasum -a 256
+        // echo -n -e 'ATTACK AT DAWN\x00' | shasum -a 256
         let mut hasher = FullDomainHash::<Sha256>::new(128 / 8).unwrap();
         hasher.input(b"ATTACK AT DAWN");
         let result = hex::encode(hasher.vec_result());
-        assert_eq!(result, "d06924c6a0fc0f30463308895add96e9");
+        assert_eq!(result, "015d53c7925b4434f00286fe2f0eb283");
 
-        // echo -n -e 'ATTACK AT DAWN\x00\x00\x00\x00' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
-        // echo -n -e 'ATTACK AT DAWN\x00\x00\x00\x01' | shasum -a 256 | cut -d ' ' -f 1
+        // echo -n -e 'ATTACK AT DAWN\x00' | shasum -a 256 && echo -n -e 'ATTACK AT DAWN\x01' | shasum -a 256
         let mut hasher = FullDomainHash::<Sha256>::new(264 / 8).unwrap();
         hasher.input(b"ATTACK AT DAWN");
         let result = hex::encode(hasher.vec_result());
         assert_eq!(
             result,
-            "d06924c6a0fc0f30463308895add96e9f2cf48e477a187d1f4079536276958e538"
+            "015d53c7925b4434f00286fe2f0eb28378a49300b159b896eb2356a7c4de95f158"
         );
 
         // # Expand SHA256 hash of "ATTACK AT DAWN" to 1024 bits
-        // echo -n -e 'ATTACK AT DAWN\x00\x00\x00\x00' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
-        // echo -n -e 'ATTACK AT DAWN\x00\x00\x00\x01' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
-        // echo -n -e 'ATTACK AT DAWN\x00\x00\x00\x02' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
-        // echo -n -e 'ATTACK AT DAWN\x00\x00\x00\x03' | shasum -a 256 | cut -d ' ' -f 1
+        // echo -n -e 'ATTACK AT DAWN\x00' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
+        // echo -n -e 'ATTACK AT DAWN\x01' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
+        // echo -n -e 'ATTACK AT DAWN\x02' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
+        // echo -n -e 'ATTACK AT DAWN\x03' | shasum -a 256 | cut -d ' ' -f 1
         let mut hasher = FullDomainHash::<Sha256>::new(1024 / 8).unwrap();
         hasher.input(b"ATTACK AT DAWN");
         let result = hex::encode(hasher.vec_result());
-        assert_eq!(result, "d06924c6a0fc0f30463308895add96e9f2cf48e477a187d1f4079536276958e53843af10006e0a1da85b70d5bb8be9b29a40667465d771cbac89f671d0b88b31fa91a4c9cdd497c10e32971eceac3a5abeb533f36ba77803bf2247830db07548183421bf034229e7a44424ff02b04e4595a32c916e29e30eedb7d05059bcf852");
+        assert_eq!(result, "015d53c7925b4434f00286fe2f0eb28378a49300b159b896eb2356a7c4de95f158617fec3b813f834cd86ab0dd26b971c46b7ede451b490279628a265edf0a10691095675808b47c0add4300b3181a31109cbc31a945d05562ceb6cca0fea834d9c456fe1abf34a5a775ed572ce571b1dcca03b984102e666e9ab876876fb3af");
 
-        // # Expand SHA256 hash of "ATTACK AT DAWN" to 1024 bits, using 4294967294 as the initialization vector.
-        // echo -n -e 'ATTACK AT DAWN\xFF\xFF\xFF\xFE' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
-        // echo -n -e 'ATTACK AT DAWN\xFF\xFF\xFF\xFF' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
-        // echo -n -e 'ATTACK AT DAWN\x00\x00\x00\x00' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
-        // echo -n -e 'ATTACK AT DAWN\x00\x00\x00\x01' | shasum -a 256 | cut -d ' ' -f 1
-        let mut hasher = FullDomainHash::<Sha256>::with_iv(1024 / 8, 4294967294);
+        // # Expand SHA256 hash of "ATTACK AT DAWN" to 1024 bits, using 254 as the initial suffix.
+        // echo -n -e 'ATTACK AT DAWN\xFE' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
+        // echo -n -e 'ATTACK AT DAWN\xFF' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
+        // echo -n -e 'ATTACK AT DAWN\x00' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
+        // echo -n -e 'ATTACK AT DAWN\x01' | shasum -a 256 | cut -d ' ' -f 1
+        let mut hasher = FullDomainHash::<Sha256>::with_iv(1024 / 8, 254);
         hasher.input(b"ATTACK AT DAWN");
         let result = hex::encode(hasher.vec_result());
-        assert_eq!(result, "87c26af69c716e524e5600249f049525fa12a273b2ebdc9ee29ae9d004712d13774bebfcb7c362064e64619239060d775e127f2432640125fa6fd34b792b4435d06924c6a0fc0f30463308895add96e9f2cf48e477a187d1f4079536276958e53843af10006e0a1da85b70d5bb8be9b29a40667465d771cbac89f671d0b88b31");
+        assert_eq!(result, "8b41c68cc83acfa422fb6a0c61c5c7a14eef381768d37375c78caf61d76e62b4a93a562946a7378fc3eca407eb44e81fef2be026e1ee340ba85a06f9b2e4fe84015d53c7925b4434f00286fe2f0eb28378a49300b159b896eb2356a7c4de95f158617fec3b813f834cd86ab0dd26b971c46b7ede451b490279628a265edf0a10");
     }
 
     #[test]
@@ -357,25 +347,25 @@ mod tests {
         let mut reader = hasher.xof_result();
         let mut read_buf = <[u8; 8]>::default();
 
-        // d06924c6a0fc0f30
+        // 015d53c7925b4434
         reader.read(&mut read_buf);
-        assert_eq!(read_buf, [0xd0, 0x69, 0x24, 0xc6, 0xa0, 0xfc, 0x0f, 0x30]);
+        assert_eq!(read_buf, [0x01, 0x5d, 0x53, 0xc7, 0x92, 0x5b, 0x44, 0x34]);
 
-        // 463308895add96e9
+        // f00286fe2f0eb283
         reader.read(&mut read_buf);
-        assert_eq!(read_buf, [0x46, 0x33, 0x08, 0x89, 0x5a, 0xdd, 0x96, 0xe9]);
+        assert_eq!(read_buf, [0xf0, 0x02, 0x86, 0xfe, 0x2f, 0x0e, 0xb2, 0x83]);
 
-        // f2cf48e477a187d1
+        // 78a49300b159b896
         reader.read(&mut read_buf);
-        assert_eq!(read_buf, [0xf2, 0xcf, 0x48, 0xe4, 0x77, 0xa1, 0x87, 0xd1]);
+        assert_eq!(read_buf, [0x78, 0xa4, 0x93, 0x00, 0xb1, 0x59, 0xb8, 0x96]);
 
-        // f4079536276958e5
+        // eb2356a7c4de95f1
         reader.read(&mut read_buf);
-        assert_eq!(read_buf, [0xf4, 0x07, 0x95, 0x36, 0x27, 0x69, 0x58, 0xe5]);
+        assert_eq!(read_buf, [0xeb, 0x23, 0x56, 0xa7, 0xc4, 0xde, 0x95, 0xf1]);
 
-        // 3843af10006e0a1d
+        // 58617fec3b813f83
         reader.read(&mut read_buf);
-        assert_eq!(read_buf, [0x38, 0x43, 0xaf, 0x10, 0x00, 0x6e, 0x0a, 0x1d]);
+        assert_eq!(read_buf, [0x58, 0x61, 0x7f, 0xec, 0x3b, 0x81, 0x3f, 0x83]);
 
         // Test with an odd number (21 in the case does not fit nicely into 32)
         let mut hasher = FullDomainHash::<Sha256>::default();
@@ -383,28 +373,28 @@ mod tests {
         let mut reader = hasher.xof_result();
         let mut read_buf = <[u8; 21]>::default();
 
-        // d06924c6a0fc0f30463308895add96e9f2cf48e477
+        // 015d53c7925b4434f00286fe2f0eb28378a49300b1
         reader.read(&mut read_buf);
         assert_eq!(
             read_buf,
             [
-                0xd0, 0x69, 0x24, 0xc6, 0xa0, 0xfc, 0x0f, 0x30, 0x46, 0x33, 0x08, 0x89, 0x5a, 0xdd,
-                0x96, 0xe9, 0xf2, 0xcf, 0x48, 0xe4, 0x77
+                0x01, 0x5d, 0x53, 0xc7, 0x92, 0x5b, 0x44, 0x34, 0xf0, 0x02, 0x86, 0xfe, 0x2f, 0x0e,
+                0xb2, 0x83, 0x78, 0xa4, 0x93, 0x00, 0xb1
             ]
         );
 
-        // a187d1f4079536276958e53843af10006e0a1da85b
+        // 59b896eb2356a7c4de95f158617fec3b813f834cd8
         reader.read(&mut read_buf);
         assert_eq!(
             read_buf,
             [
-                0xa1, 0x87, 0xd1, 0xf4, 0x07, 0x95, 0x36, 0x27, 0x69, 0x58, 0xe5, 0x38, 0x43, 0xaf,
-                0x10, 0x00, 0x6e, 0x0a, 0x1d, 0xa8, 0x5b
+                0x59, 0xb8, 0x96, 0xeb, 0x23, 0x56, 0xa7, 0xc4, 0xde, 0x95, 0xf1, 0x58, 0x61, 0x7f,
+                0xec, 0x3b, 0x81, 0x3f, 0x83, 0x4c, 0xd8
             ]
         );
 
         // Test where output size is larger than hash output size (21 > 20) using Sha1
-        // 5355fb9836f1b3753273a837155abed75623a9393c
+        // 1adfc344b75ab9a77d70745f4ebb5a973c5d1f1d20
         let mut hasher = FullDomainHash::<Sha1>::default();
         hasher.input(b"ATTACK AT DAWN");
         let mut reader = hasher.xof_result();
@@ -413,13 +403,13 @@ mod tests {
         assert_eq!(
             read_buf,
             [
-                0x53, 0x55, 0xfb, 0x98, 0x36, 0xf1, 0xb3, 0x75, 0x32, 0x73, 0xa8, 0x37, 0x15, 0x5a,
-                0xbe, 0xd7, 0x56, 0x23, 0xa9, 0x39, 0x3c
+                0x1a, 0xdf, 0xc3, 0x44, 0xb7, 0x5a, 0xb9, 0xa7, 0x7d, 0x70, 0x74, 0x5f, 0x4e, 0xbb,
+                0x5a, 0x97, 0x3c, 0x5d, 0x1f, 0x1d, 0x20
             ]
         );
 
         // Test where output size and digest size are the same using Sha1.
-        // 5355fb9836f1b3753273a837155abed75623a939
+        // 1adfc344b75ab9a77d70745f4ebb5a973c5d1f1d
         let mut hasher = FullDomainHash::<Sha1>::default();
         hasher.input(b"ATTACK AT DAWN");
         let mut reader = hasher.xof_result();
@@ -428,8 +418,8 @@ mod tests {
         assert_eq!(
             read_buf,
             [
-                0x53, 0x55, 0xfb, 0x98, 0x36, 0xf1, 0xb3, 0x75, 0x32, 0x73, 0xa8, 0x37, 0x15, 0x5a,
-                0xbe, 0xd7, 0x56, 0x23, 0xa9, 0x39
+                0x1a, 0xdf, 0xc3, 0x44, 0xb7, 0x5a, 0xb9, 0xa7, 0x7d, 0x70, 0x74, 0x5f, 0x4e, 0xbb,
+                0x5a, 0x97, 0x3c, 0x5d, 0x1f, 0x1d
             ]
         );
     }
