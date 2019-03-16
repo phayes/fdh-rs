@@ -133,7 +133,7 @@ impl<H: Digest + Clone> FullDomainHash<H> {
     ///  - `max` should be the maximum allowed value in big endian format. For an RSA-FDH this would be the modulus `n`.
     ///
     /// # Example
-    /// ```rust,no_run
+    /// ```rust,compile_fail
     /// let mut hasher = FullDomainHash::<Sha512>::new(64)?;
     /// hasher.input(b"ATTACKATDAWN");
     /// let iv: u32 = rng.gen();
