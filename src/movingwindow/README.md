@@ -36,7 +36,7 @@ Pseudocode:
 H = XOF(message);
 digest = H.read_bits(target_length)
 while digest > n OR digest <= m
-    digest = digest[1..] || H.read_bits(1) // bitshift
+    digest = digest[1..] || H.read_bits(1) // equivilent to a bitshift
 return digest
 ```
 
