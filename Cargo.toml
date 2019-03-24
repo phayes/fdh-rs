@@ -1,6 +1,6 @@
 [package]
 name = "fdh"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["phayes <patrick.d.hayes@gmail.com>"]
 edition = "2018"
 description = "Full Domain Hash (FDH) for extending the size of a hash digest to an arbitrary length"
