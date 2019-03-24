@@ -76,8 +76,8 @@
 //! let mut hasher = FullDomainHash::<Sha512>::new(64).unwrap();
 //! hasher.input(b"ATTACKATDAWN");
 //!
-//! fn digest_is_odd(digest: &BigUint) -> bool {
-//!   digest.is_odd()
+//! fn digest_is_odd(digest: &[u8]) -> bool {
+//!   BigUint::from_bytes_be(digest).is_odd()
 //! }
 //! let iv = 0;
 //!
@@ -182,7 +182,9 @@ impl<H: Digest + Clone> FullDomainHash<H> {
         min: &BigUint,
         max: &BigUint,
     ) -> Result<(std::vec::Vec<u8>, u8), Error> {
-        self.results_in_domain(initial_iv, |check| check < max && check > min)
+        self.results_in_domain(initial_iv, |check| {
+            &BigUint::from_bytes_be(check) < max && &BigUint::from_bytes_be(check) > min
+        })
     }
 
     /// Get a digest value that is less than the specified maximum value.
@@ -194,7 +196,7 @@ impl<H: Digest + Clone> FullDomainHash<H> {
         initial_iv: u8,
         max: &BigUint,
     ) -> Result<(std::vec::Vec<u8>, u8), Error> {
-        self.results_in_domain(initial_iv, |check| check < max)
+        self.results_in_domain(initial_iv, |check| &BigUint::from_bytes_be(check) < max)
     }
 
     /// Get a digest value that is more than the specified maximum value.
@@ -204,7 +206,7 @@ impl<H: Digest + Clone> FullDomainHash<H> {
         initial_iv: u8,
         min: &BigUint,
     ) -> Result<(std::vec::Vec<u8>, u8), Error> {
-        self.results_in_domain(initial_iv, |check| check > min)
+        self.results_in_domain(initial_iv, |check| &BigUint::from_bytes_be(check) > min)
     }
 
     /// Get a digest value that is within the domain specified by the passed closure.
@@ -220,9 +222,9 @@ impl<H: Digest + Clone> FullDomainHash<H> {
     /// let mut hasher = FullDomainHash::<Sha512>::new(64).unwrap();
     /// hasher.input(b"ATTACKATDAWN");
     ///
-    /// let (digest, iv) = hasher.results_in_domain(0, |check_digest| check_digest.is_odd()).unwrap();
+    /// let (digest, iv) = hasher.results_in_domain(0, |digest| BigUint::from_bytes_be(digest).is_odd()).unwrap();
     /// ```
-    pub fn results_in_domain<C: Fn(&BigUint) -> bool>(
+    pub fn results_in_domain<C: Fn(&[u8]) -> bool>(
         self,
         initial_iv: u8,
         value_in_domain: C,
@@ -239,7 +241,7 @@ impl<H: Digest + Clone> FullDomainHash<H> {
             };
             hasher.current_suffix = current_suffix;
             let res = VariableOutput::vec_result(hasher);
-            if value_in_domain(&BigUint::from_bytes_be(&res)) {
+            if value_in_domain(&res) {
                 return Ok((res, current_suffix));
             } else {
                 current_suffix = current_suffix.wrapping_add(1);
