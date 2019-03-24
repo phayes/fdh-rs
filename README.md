@@ -5,11 +5,19 @@
 [![docs](https://docs.rs/fdh/badge.svg)](https://docs.rs/fdh)
 [![crates.io](https://meritbadge.herokuapp.com/fdh)](https://crates.io/crates/fdh)
 
-A Full Domain Hash (FDH) is a useful cryptographic construction that extends the size of a hash digest to an arbitrary length. For example, SHA256 can be expanded to 1024 bits instead of the usual 256 bits.
+A Full Domain Hash (FDH) is a useful cryptographic construction that extends the size of a hash digest to an arbitrary length. For example, SHA256 can be expanded to 1024 bits instead of the usual 256 bits. It can also be used to limit the domain of the resulting digest (for example ensuring the digest is less than modulus `n` in RSA).
 
-We construct an FDH by computing a number of cycles where `cycles=(target length)/(digest length) + 1`. We then compute `FDH(M) = HASH(M||0) || HASH(M||1) || ... || HASH(M||cycles−1)`, where `HASH` is any hash function, `M` is the message, `||` denotes concatenation, and numerical values are single-byte `u8`.
+We construct an FDH by computing a number of cycles where:
 
-FDHs are usually used with an RSA signature scheme where the target length is the size of the key. See https://en.wikipedia.org/wiki/Full_Domain_Hash
+`cycles=(target length)/(digest length) + 1`
+
+We then compute:
+
+`FDH(M) = HASH(M||0) || HASH(M||1) || ... || HASH(M||cycles−1)`
+
+Where `HASH` is any hash function, `M` is the message, `||` denotes concatenation, and numerical values are single-byte `u8`.
+
+FDHs are usually used with an RSA signature scheme where the target length is the size of the key, and the domain is less than modulus `n`. See https://en.wikipedia.org/wiki/Full_Domain_Hash
 
 This crate makes extensive use of the [`digest`](/digest) crate's cryptograhic hash traits, so most useful methods are implemented as part of `digest` traits. These traits are re-exported for convenience. See [https://github.com/RustCrypto/hashes](https://github.com/RustCrypto/hashes) for a list of compatible hashes.
 
