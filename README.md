@@ -1,5 +1,4 @@
-Full Domain Hash
-----------------
+## Full Domain Hash
 
 [![Build Status](https://travis-ci.org/phayes/fdh-rs.svg?branch=master)](https://travis-ci.org/phayes/fdh-rs)
 [![codecov](https://codecov.io/gh/phayes/fdh-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/phayes/fdh-rs)
@@ -14,9 +13,8 @@ FDHs are usually used with an RSA signature scheme where the target length is th
 
 This crate makes extensive use of the [`digest`](/digest) crate's cryptograhic hash traits, so most useful methods are implemented as part of `digest` traits. These traits are re-exported for convenience. See [https://github.com/RustCrypto/hashes](https://github.com/RustCrypto/hashes) for a list of compatible hashes.
 
+## Example
 
-Example
--------
 ```rust
   use sha2::Sha256;
   use fdh::{FullDomainHash, VariableOutput, Input};
@@ -29,8 +27,7 @@ Example
   let result = hasher.vec_result();
 ```
 
-`no_std`
--------
+## `no_std`
 
 This crate also supports `no_std`, so it can be used in embedded or other settings with no allocation.
 
@@ -38,7 +35,7 @@ This crate also supports `no_std`, so it can be used in embedded or other settin
 #![no_std]
 use sha2::Sha256;
 use fdh::{FullDomainHash, Input, ExtendableOutput, XofReader};
-   
+
 // Expand SHA256 from 256 bits to 512 bits (and beyond!), reading it in 16 byte chunks.
 let mut hasher = FullDomainHash::<Sha256>::default();
 hasher.input(b"ATTACK AT DAWN");
@@ -54,4 +51,39 @@ reader.read(&mut read_buf);
 // If we want, we can just keep going, reading as many bits as we want indefinitely.
 reader.read(&mut read_buf);
 reader.read(&mut read_buf);
+```
+
+## Restricted Domain
+
+This crate also supports getting a digest that is within a specific domain. It follows an algorithim like so:
+
+```
+fn digest_in_domain(message, iv):
+    digest = fdh(message, iv)
+    while not digest.in_domain():
+        iv++
+        digest = fdh(message, iv)
+    return digest, iv
+```
+
+The method `results_in_domain()` is provided to accomplish this. The helper methods `results_between()`, `results_lt()`, `results_gt()` are provided for the common case where the digest must be in a certain range.
+
+An example that produces a digest that is odd:
+
+```rust
+use sha2::Sha512;
+use fdh::{FullDomainHash, Input, VariableOutput};
+use num_bigint::BigUint;
+use num_integer::Integer;
+
+// Get a full domain hash that is odd
+let mut hasher = FullDomainHash::<Sha512>::new(64).unwrap();
+hasher.input(b"ATTACKATDAWN");
+
+fn digest_is_odd(&digest: &BigUint) -> bool {
+  digest.is_odd()
+}
+let iv = 0;
+
+let (digest, iv) = hasher.results_in_domain(iv, digest_is_odd).unwrap();
 ```

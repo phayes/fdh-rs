@@ -52,7 +52,7 @@ use digest::Digest;
 pub use digest::{ExtendableOutput, Input, Reset, VariableOutput, XofReader};
 use failure::Fail;
 use generic_array::GenericArray;
-use num_bigint_dig::BigUint;
+use num_bigint::BigUint;
 
 #[cfg(feature = "std")]
 extern crate std;
@@ -124,21 +124,71 @@ impl<H: Digest + Clone> FullDomainHash<H> {
 
     /// Search for a digest value that is numerically within the provided range by iterating over initial suffixes. Return the resulting digest and initialization value.
     ///
-    /// This is useful when the full-domain-hash needs to be less than some value, for example modulus `n` in RSA-FDH. `initial_iv` should be randomly generated in most cases.
-    ///
     /// # Example
-    /// ```rust,compile_fail
-    /// let mut hasher = FullDomainHash::<Sha512>::new(64)?;
+    /// ```rust
+    /// use sha2::Sha512;
+    /// use fdh::{FullDomainHash, Input, VariableOutput};
+    /// use num_bigint::BigUint;
+    ///
+    /// // Get a full domain hash that is a mere 8 bytes (64 bits) long.
+    /// let mut hasher = FullDomainHash::<Sha512>::new(8).unwrap();
     /// hasher.input(b"ATTACKATDAWN");
-    /// let iv: u8 = rng.gen();
-    /// let (digest, iv) = hasher.results_within(iv, 0, priv_key.n())?;
+    /// let min = BigUint::from(10u64);
+    /// let max = BigUint::from(5_000_000_000_000_000_000u64); // about half of u64 max.
+    ///
+    /// let (digest, iv) = hasher.results_between(0, &min, &max).unwrap();
     /// ```
     #[cfg(feature = "std")]
-    pub fn results_within(
+    pub fn results_between(
         self,
         initial_iv: u8,
         min: &BigUint,
         max: &BigUint,
+    ) -> Result<(std::vec::Vec<u8>, u8), Error> {
+        self.results_in_domain(initial_iv, |check| check < max && check > min)
+    }
+
+    /// Get a digest value that is less than the specified maximum value.
+    ///
+    /// This is useful when the full-domain-hash needs to be less than some value, for example modulus `n` in RSA-FDH.
+    #[cfg(feature = "std")]
+    pub fn results_lt(
+        self,
+        initial_iv: u8,
+        max: &BigUint,
+    ) -> Result<(std::vec::Vec<u8>, u8), Error> {
+        self.results_in_domain(initial_iv, |check| check < max)
+    }
+
+    /// Get a digest value that is more than the specified maximum value.
+    #[cfg(feature = "std")]
+    pub fn results_gt(
+        self,
+        initial_iv: u8,
+        min: &BigUint,
+    ) -> Result<(std::vec::Vec<u8>, u8), Error> {
+        self.results_in_domain(initial_iv, |check| check > min)
+    }
+
+    /// Get a digest value that is within the domain specified by the passed closure.
+    ///
+    /// # Example
+    /// ```rust
+    /// use sha2::Sha512;
+    /// use fdh::{FullDomainHash, Input, VariableOutput};
+    /// use num_bigint::BigUint;
+    /// use num_integer::Integer;
+    ///
+    /// // Get a full domain hash that is odd
+    /// let mut hasher = FullDomainHash::<Sha512>::new(64).unwrap();
+    /// hasher.input(b"ATTACKATDAWN");
+    ///
+    /// let (digest, iv) = hasher.results_in_domain(0, |check_digest| check_digest.is_odd()).unwrap();
+    /// ```
+    pub fn results_in_domain<C: Fn(&BigUint) -> bool>(
+        self,
+        initial_iv: u8,
+        value_in_domain: C,
     ) -> Result<(std::vec::Vec<u8>, u8), Error> {
         let mut current_suffix = initial_iv;
 
@@ -152,7 +202,7 @@ impl<H: Digest + Clone> FullDomainHash<H> {
             };
             hasher.current_suffix = current_suffix;
             let res = VariableOutput::vec_result(hasher);
-            if &BigUint::from_bytes_be(&res) < max && &BigUint::from_bytes_be(&res) > min {
+            if value_in_domain(&BigUint::from_bytes_be(&res)) {
                 return Ok((res, current_suffix));
             } else {
                 current_suffix = current_suffix.wrapping_add(1);
@@ -423,7 +473,7 @@ mod tests {
     #[cfg(feature = "std")]
     fn test_results_within() {
         use crate::{FullDomainHash, Input, VariableOutput};
-        use num_bigint_dig::BigUint;
+        use num_bigint::BigUint;
         use num_traits::Num;
 
         let min = BigUint::from_str_radix(
@@ -440,7 +490,7 @@ mod tests {
         let mut hasher = FullDomainHash::<Sha256>::new(256 / 8).unwrap();
         hasher.input(b"ATTACK AT DAWN");
         let iv = 0;
-        let (result, iv) = hasher.results_within(iv, &min, &max).unwrap();
+        let (result, iv) = hasher.results_between(iv, &min, &max).unwrap();
         assert_eq!(iv, 20);
         assert_eq!(
             hex::encode(result),
