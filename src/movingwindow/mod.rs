@@ -69,7 +69,7 @@ fn left_pad(input: &[u8], size: usize) -> std::vec::Vec<u8> {
 #[cfg(test)]
 mod tests {
     use crate::movingwindow::MWFullDomainHash;
-    use num_bigint_dig::BigUint;
+    use num_bigint::BigUint;
     use num_traits::Num;
     use sha3::Shake128;
 
