@@ -46,6 +46,43 @@
 //! reader.read(&mut read_buf);
 //! reader.read(&mut read_buf);
 //! ```
+//!
+//!
+//!
+//! # Restricted Domain
+//!
+//! This crate also supports getting a digest that is within a specific domain. It follows an algorithim like so:
+//!
+//! ```pseudocode
+//! fn digest_in_domain(message, iv):
+//!    digest = fdh(message, iv)
+//!    while not digest.in_domain():
+//!        iv++
+//!        digest = fdh(message, iv)
+//!    return digest, iv
+//! ```
+//!
+//! The method `results_in_domain()` is provided to accomplish this. The helper methods `results_between()`, `results_lt()`, `results_gt()` are provided for the common case where the digest must be in a certain range.
+//!
+//! An example that produces a digest that is odd:
+//!
+//! ```rust
+//! use sha2::Sha512;
+//! use fdh::{FullDomainHash, Input, VariableOutput};
+//! use num_bigint::BigUint;
+//! use num_integer::Integer;
+//!
+//! // Get a full domain hash that is odd
+//! let mut hasher = FullDomainHash::<Sha512>::new(64).unwrap();
+//! hasher.input(b"ATTACKATDAWN");
+//!
+//! fn digest_is_odd(digest: &BigUint) -> bool {
+//!   digest.is_odd()
+//! }
+//! let iv = 0;
+//!
+//! let (digest, iv) = hasher.results_in_domain(iv, digest_is_odd).unwrap();
+//! ```
 
 #![no_std]
 use digest::Digest;

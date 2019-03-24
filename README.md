@@ -80,7 +80,7 @@ use num_integer::Integer;
 let mut hasher = FullDomainHash::<Sha512>::new(64).unwrap();
 hasher.input(b"ATTACKATDAWN");
 
-fn digest_is_odd(&digest: &BigUint) -> bool {
+fn digest_is_odd(digest: &BigUint) -> bool {
   digest.is_odd()
 }
 let iv = 0;
