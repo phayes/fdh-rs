@@ -60,7 +60,7 @@ This crate also supports getting a digest that is within a specific domain. It f
 ```
 fn digest_in_domain(message, iv):
     digest = fdh(message, iv)
-    while not digest.in_domain():
+    while not in_domain(digest):
         iv++
         digest = fdh(message, iv)
     return digest, iv
