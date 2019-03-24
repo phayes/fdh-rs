@@ -87,3 +87,7 @@ let iv = 0;
 
 let (digest, iv) = hasher.results_in_domain(iv, digest_is_odd).unwrap();
 ```
+
+## Moving Window Full Domain Hash
+
+This crate also includes an experimental Moving Window Full Domain Hash (MWFDH), more information can be found [here](https://github.com/phayes/fdh-rs/tree/master/src/movingwindow).
