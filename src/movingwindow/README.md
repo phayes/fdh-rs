@@ -44,7 +44,7 @@ Each iteration of the MWFDH requires only a single bit shift.
 
 ---
 
-![figure-1](https://raw.githubusercontent.com/phayes/fdh-rs/master/src/movingwindow/docs/figure-1.png | width=500)
+<img src="https://raw.githubusercontent.com/phayes/fdh-rs/master/src/movingwindow/docs/figure-1.png" width="50%">
 
 **Figure 1. A Moving Window Full Domain Hash**
 
