@@ -41,3 +41,14 @@ return digest
 ```
 
 Each iteration of the MWFDH requires only a single bit shift. 
+
+---
+
+![figure-1](https://raw.githubusercontent.com/phayes/fdh-rs/master/src/movingwindow/docs/figure-1.png)
+
+Figure 1. A Moving Window Full Domain Hash
+
+In this example, an Extendable Output Hash Function outputs a hash one byte at a time. A moving window is applied against the output to find a one byte Full Domain Hash where the domain is larger than 240 (`11110000`). The final FDH digest value is `11110011`.
+
+---
+
