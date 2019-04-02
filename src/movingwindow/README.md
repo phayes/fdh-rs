@@ -17,11 +17,11 @@ This is traditionally accomplished by constructing an FDH out of a fixed-length 
 cycles=(target_length) / (digest_length) + 1
 FDH(M) = HASH(M||(SV + 0)) || HASH(M||(SV + 0)) || ... || HASH(M||(SV + cycles−1))
 
-SV = 0
+sv = 0
 digest = FDH(message)
 while not in_domain(digest):
     sv++
-    digest = FDH(message, SV)
+    digest = FDH(message, sv)
 return digest
 ```
 
