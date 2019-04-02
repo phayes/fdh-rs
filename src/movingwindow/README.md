@@ -25,7 +25,7 @@ while digest > n OR digest <= m
 return digest
 ```
 
-This traditional method works, but is computationally expensive because it requires recomputing `HASH(M||(IV + 0)` multiple times with every iteration of `IV`.
+This traditional method works, but is computationally expensive because it requires recomputing `HASH(M||(IV + 0)` multiple times with every iteration of `IV`. For domains that require many iterations to find an acceptable digest, this can be very expensive computationally. 
 
 ### Description
 
