@@ -17,11 +17,11 @@ This is traditionally accomplished by constructing an FDH out of a fixed-length 
 cycles=(target_length) / (digest_length) + 1
 FDH(M) = HASH(M||(SV + 0)) || HASH(M||(SV + 0)) || ... || HASH(M||(SV + cycles−1))
 
-SV = 0
+sv = 0
 digest = FDH(message)
-while digest > n OR digest <= m
+while not in_domain(digest):
     sv++
-    digest = FDH(message, SV)
+    digest = FDH(message, sv)
 return digest
 ```
 
@@ -35,9 +35,20 @@ Pseudocode:
 ```
 H = XOF(message);
 digest = H.read_bits(target_length)
-while digest > n OR digest <= m
+while not in_domain(digest):
     digest = digest[1..] || H.read_bits(1) // equivilent to a bitshift
 return digest
 ```
 
 Each iteration of the MWFDH requires only a single bit shift. 
+
+---
+
+<img src="https://raw.githubusercontent.com/phayes/fdh-rs/master/src/movingwindow/docs/figure-1.png" width="50%">
+
+**Figure 1. A Moving Window Full Domain Hash**
+
+In this example, an Extendable Output Hash Function outputs a digest one byte at a time. A moving window is applied against the output to find a one byte Full Domain Hash where the domain is larger than 240 (`11110000`). The final FDH digest value is `11110011`.
+
+---
+
