@@ -19,7 +19,7 @@ FDH(M) = HASH(M||(SV + 0)) || HASH(M||(SV + 0)) || ... || HASH(M||(SV + cyclesâˆ
 
 SV = 0
 digest = FDH(message)
-while digest > n OR digest <= m
+while not in_domain(digest):
     sv++
     digest = FDH(message, SV)
 return digest
@@ -35,7 +35,7 @@ Pseudocode:
 ```
 H = XOF(message);
 digest = H.read_bits(target_length)
-while digest > n OR digest <= m
+while not in_domain(digest):
     digest = digest[1..] || H.read_bits(1) // equivilent to a bitshift
 return digest
 ```
