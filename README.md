@@ -4,6 +4,7 @@
 [![codecov](https://codecov.io/gh/phayes/fdh-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/phayes/fdh-rs)
 [![docs](https://docs.rs/fdh/badge.svg)](https://docs.rs/fdh)
 [![crates.io](https://meritbadge.herokuapp.com/fdh)](https://crates.io/crates/fdh)
+[![patreon](https://img.shields.io/badge/patreon-donate-green.svg)](https://patreon.com/phayes)
 
 A Full Domain Hash (FDH) is a useful cryptographic construction that extends the size of a hash digest to an arbitrary length. For example, SHA256 can be expanded to 1024 bits instead of the usual 256 bits. It can also be used to limit the domain of the resulting digest (for example ensuring the digest is less than modulus `n` in RSA).
 
@@ -99,3 +100,7 @@ let (digest, iv) = hasher.results_in_domain(iv, digest_is_odd).unwrap();
 ## Moving Window Full Domain Hash
 
 This crate also includes an experimental Moving Window Full Domain Hash (MWFDH), more information can be found [here](https://github.com/phayes/fdh-rs/tree/master/src/movingwindow).
+
+ ## Contributors
+ 
+ 1. Patrick Hayes ([linkedin](https://www.linkedin.com/in/patrickdhayes/)) ([github](https://github.com/phayes)) - Available for hire.
