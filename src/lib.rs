@@ -29,8 +29,9 @@
 //! #![no_std]
 //! use sha2::Sha256;
 //! use fdh::{FullDomainHash, Input, ExtendableOutput, XofReader};
-//!   
-//! // Expand SHA256 from 256 bits to 512 bits (and beyond!), reading it in 16 byte chunks.
+//!
+//! # fn main() {
+//! // Expand SHA256 from 256 bits to 512 bits (and beyond), reading it in 16 byte chunks.
 //! let mut hasher = FullDomainHash::<Sha256>::default();
 //! hasher.input(b"ATTACK AT DAWN");
 //! let mut reader = hasher.xof_result();
@@ -45,6 +46,7 @@
 //! // If we want, we can just keep going, reading as many bits as we want indefinitely.
 //! reader.read(&mut read_buf);
 //! reader.read(&mut read_buf);
+//! # }
 //! ```
 //!
 //!
