@@ -12,7 +12,7 @@ categories = ["cryptography", "no-std"]
 
 [dependencies]
 digest = "0.8.0"
-generic-array = "0.12.0"
+generic-array = "0.13.1"
 failure = {version = "0.1.5", optional = true}
 num-bigint = {version="0.2.2", optional = true}
 bitvec = "0.10.0"
