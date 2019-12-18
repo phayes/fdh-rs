@@ -25,11 +25,11 @@ while not in_domain(digest):
 return digest
 ```
 
-This traditional method works, but is computationally expensive because it requires recomputing `HASH(M||(IV + 0)` multiple times with every iteration of `IV`. For domains that require many iterations to find an acceptable digest, this can be very expensive computationally. 
+This traditional method works, but is computationally expensive because it requires recomputing `HASH(M||(IV + 0)` multiple times with every iteration of `IV`. For domains that require many iterations to find an acceptable digest, this can be very computationally expensive. 
 
 ### Description
 
-The Moving Window Full Domain Hash (MWFDH) is constructed as follows:
+The Moving Window Full Domain Hash (MWFDH) computationally cheap, and is constructed as follows:
 
 Pseudocode:
 ```
