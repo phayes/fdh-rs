@@ -8,7 +8,7 @@
 [![flattr](https://img.shields.io/badge/flattr-donate-green.svg)](https://flattr.com/@phayes)
 
 
-A Full Domain Hash (FDH) is a useful cryptographic construction that limits the domain of the resulting digest (for example ensuring the digest is less than modulus `n` in RSA). Secondarily, it can also be used to extend the size of a hash digest to an arbitrary length, turning a regular hash function into an XOF hash function.
+A Full Domain Hash (FDH) is a useful cryptographic construction that limits the domain of the digest of a hash function (for example ensuring the digest is less than modulus `n` in RSA). Secondarily, it can also be used to extend the size of a hash digest to an arbitrary length, turning a regular hash function into an XOF hash function.
 
 We construct an FDH by computing a number of cycles where:
 
