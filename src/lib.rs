@@ -96,9 +96,6 @@ use num_bigint::BigUint;
 #[cfg(feature = "std")]
 extern crate std;
 
-#[cfg(feature = "std")]
-pub mod movingwindow;
-
 #[derive(Clone, Debug, Default)]
 pub struct FullDomainHash<H: Digest> {
     output_size: usize,
