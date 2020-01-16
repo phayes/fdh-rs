@@ -57,3 +57,14 @@ In this example, an Extendable Output Hash Function outputs a digest one byte at
 Because the MWFDH is so computationally cheap, it is practical to use it to constuct a constant-time variation. To construct a constant-time MWFDH, we specificy a fixed number of iterations. As the moving window steps through the underlying XOF Hash Function, it keeps track of how many iterations have been completed, and steps through a fixed-number of iterations regardless of if a valid diget-value was found or not. Regardless of the number of iterations completed, the first valid digest value found is still used as the diget value of the constant-time MWFDH. 
 
 It's possible that the constant-time MWFDH does not find a valid digest value after stepping through the specified fixed-number of iterations. In this case, no digest value is produced and an error is raised. The probability of an error can be strictly bounded by specifying a large enough fixed number of iterations. 
+
+
+---
+
+<img src="https://raw.githubusercontent.com/phayes/fdh-rs/master/src/movingwindow/docs/figure-2.png" width="50%">
+
+**Figure 2. A Constant Time Moving Window Full Domain Hash with 16 iterations**
+
+In this example, an Extendable Output Hash Function outputs a digest one byte at a time. A moving window is applied against the output to find a one byte Full Domain Hash where the domain is larger than 240 (`11110000`). A valid value is found after only 3 iterations, but the the moving window continues to be applied until all 16 iterations are complete. 
+
+---
