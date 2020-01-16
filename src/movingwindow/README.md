@@ -58,7 +58,7 @@ Because the MWFDH is so computationally cheap, it is practical to use it to cons
 
 It's possible that the constant-time MWFDH does not find a valid digest value after stepping through the specified fixed-number of iterations. In this case, no digest value is produced and an error is raised. The probability of an error can be strictly bounded by the number of iterations, and can be made a non-issue in practice by specifying a large enough fixed number of iterations. 
 
-*TODO: Provide a formula for calculating the error rate from digest-size and num-iterations, as well as a formula for calculating num-iterations from the digest-size and desired error rate.*
+*TODO: Provide a formula for calculating the error rate from digest-size and num-iterations, as well as a formula for calculating num-iterations needed for a given digest-size and desired error rate.*
 
 
 ---
