@@ -52,3 +52,8 @@ In this example, an Extendable Output Hash Function outputs a digest one byte at
 
 ---
 
+### Constant Time Variant
+
+Because the MWFDH is so computationally cheap, it is practical to use it to constuct a constant-time variation of it. To construct a constant-time MWFDH, we specificy a fixed number of iterations. As the moving window steps through the underlying XOF Hash Function, it keeps track of how many iterations have been completed, and steps through a fixed-number of iterations regardless of if a valid diget-value was found or not. Regardless of the number of iterations completed, the first valid digest value found is still used as the diget value of the constant-time MWFDH. 
+
+It's possible that the constnat-time MWFDH does not find a valid digest value after stepping through the specified fixed-number of iterations. In this case, no digest value is produced and an error is raised. The probability of an error can be strictly bounded by specifying a large enough fixed number of iterations. 
