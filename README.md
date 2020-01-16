@@ -8,7 +8,7 @@
 [![flattr](https://img.shields.io/badge/flattr-donate-green.svg)](https://flattr.com/@phayes)
 
 
-A Full Domain Hash (FDH) is a useful cryptographic construction that extends the size of a hash digest to an arbitrary length. For example, SHA256 can be expanded to 1024 bits instead of the usual 256 bits. It can also be used to limit the domain of the resulting digest (for example ensuring the digest is less than modulus `n` in RSA).
+A Full Domain Hash (FDH) is a useful cryptographic construction that limits the domain of the digest of a hash function (for example ensuring the digest is less than modulus `n` in RSA). Secondarily, it can also be used to extend the size of a hash digest to an arbitrary length, turning a regular hash function into an XOF hash function.
 
 We construct an FDH by computing a number of cycles where:
 
@@ -23,6 +23,8 @@ Where `HASH` is any hash function, `M` is the message, `||` denotes concatenatio
 FDHs are usually used with an RSA signature scheme where the target length is the size of the key, and the domain is less than modulus `n`. See https://en.wikipedia.org/wiki/Full_Domain_Hash
 
 This crate makes extensive use of the [`digest`](/digest) crate's cryptograhic hash traits, so most useful methods are implemented as part of `digest` traits. These traits are re-exported for convenience. See [https://github.com/RustCrypto/hashes](https://github.com/RustCrypto/hashes) for a list of compatible hashes.
+
+It should be noted that FDH is not constant-time in relation to the message. While the variable-time natue of a FDH cannot be used to recover the message (except in pathological cases), it can be used to eliminate certain values from the set of all possible values for the message. The experimental [Moving Window Full Domain Hash](https://github.com/phayes/fdh-rs/tree/master/src/movingwindow) is designed to be a constant-time FDH algorithm. 
 
 ## Example
 
@@ -101,7 +103,7 @@ let (digest, iv) = hasher.results_in_domain(iv, digest_is_odd).unwrap();
 
 ## Moving Window Full Domain Hash
 
-This crate also includes an experimental Moving Window Full Domain Hash (MWFDH), more information can be found [here](https://github.com/phayes/fdh-rs/tree/master/src/movingwindow).
+This crate also includes an experimental Moving Window Full Domain Hash (MWFDH), more information can be found [here](https://github.com/phayes/fdh-rs/tree/master/src/movingwindow). Unlike a regular FDH, a MWFDH can be made constant time. 
 
  ## Contributors
  
