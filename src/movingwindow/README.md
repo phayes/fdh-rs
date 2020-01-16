@@ -1,9 +1,11 @@
 Moving Window FDH
 -----------------
 
+**This experiment has been shown to be very broken and insecure - don't use it**
+
 This is an experimental Full Domain Hash (FDH) that is constructed of a moving-window applied against an extendable ouput (XOF) hash function. Unlike a regular Full Domain Hash, it is designed to be contant-time. 
 
-This is experiemental, and has not been formally shown to be secure.
+This was experiemental, and has been shown to be insecure and broken. 
 
 ### Background and Rational
 
