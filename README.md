@@ -24,6 +24,8 @@ FDHs are usually used with an RSA signature scheme where the target length is th
 
 This crate makes extensive use of the [`digest`](/digest) crate's cryptograhic hash traits, so most useful methods are implemented as part of `digest` traits. These traits are re-exported for convenience. See [https://github.com/RustCrypto/hashes](https://github.com/RustCrypto/hashes) for a list of compatible hashes.
 
+It should be noted that FDH is not constant-time in relation to the message.  The experimental [Moving Window Full Domain Hash]((https://github.com/phayes/fdh-rs/tree/master/src/movingwindow) is designed to be a constant-time FDH algorithm. 
+
 ## Example
 
 ```rust
