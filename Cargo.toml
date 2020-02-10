@@ -21,7 +21,7 @@ bitvec = "0.10.0"
 sha2 = "0.8.0"
 sha-1 = "0.8.1"
 sha3 = "0.8.1"
-hex = "0.3.2"
+hex = "0.4.1"
 num-traits = "0.2.6"
 num-integer = "0.1.39"
 
