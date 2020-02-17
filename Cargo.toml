@@ -11,19 +11,19 @@ keywords = ["hash", "crypto", "digest"]
 categories = ["cryptography", "no-std"]
 
 [dependencies]
-digest = "0.8.0"
-generic-array = "0.12.0"
-failure = {version = "0.1.5", optional = true}
-num-bigint = {version="0.2.2", optional = true}
-bitvec = "0.10.0"
+digest = "0.8.1"
+generic-array = "0.12.3"
+failure = {version = "0.1.6", optional = true}
+num-bigint = {version="0.2.6", optional = true}
+bitvec = "0.17.2"
 
 [dev-dependencies]
-sha2 = "0.8.0"
-sha-1 = "0.8.1"
-sha3 = "0.8.1"
-hex = "0.3.2"
-num-traits = "0.2.6"
-num-integer = "0.1.39"
+sha2 = "0.8.1"
+sha-1 = "0.8.2"
+sha3 = "0.8.2"
+hex = "0.4.1"
+num-traits = "0.2.11"
+num-integer = "0.1.42" 
 
 [badges]
 travis-ci = { repository = "phayes/fdh-rs", branch = "master" }
