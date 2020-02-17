@@ -1,5 +1,6 @@
 use bitvec::*;
 use digest::{ExtendableOutput, Input, XofReader};
+use std::borrow::ToOwned;
 use std::vec;
 use std::vec::Vec;
 
@@ -7,6 +8,10 @@ pub struct MWFullDomainHash<H: ExtendableOutput + Input + Default> {
     output_size: usize,
     inner_hash: H,
 }
+
+//fn extendorama<T: AsMut<[u8]>>(buff: &mut T, pos: usize, extend: u8) {
+//    buff.as_mut()[pos] = extend; // TODO: Switch this.
+//}
 
 impl<H: ExtendableOutput + Input + Default> MWFullDomainHash<H> {
     pub fn new(output_size: usize) -> Self {
@@ -18,6 +23,46 @@ impl<H: ExtendableOutput + Input + Default> MWFullDomainHash<H> {
 
     pub fn input(&mut self, input: &[u8]) {
         self.inner_hash.input(input);
+    }
+
+    pub fn results_in_domain<C: Fn(&[u8]) -> bool>(
+        self,
+        initial_iv: u8,
+        value_in_domain: C,
+    ) -> Vec<u8> {
+        let mut reader = self.inner_hash.xof_result();
+        let mut result: Vec<u8> = vec![0x00; self.output_size];
+
+        reader.read(&mut result);
+
+        if value_in_domain(&result) {
+            return result;
+        } else {
+            // Append another byte onto the end of the results and turn it into a bit vector.
+            let mut read_buf: Vec<u8> = vec![0x00];
+            reader.read(&mut read_buf);
+            result.push(read_buf[0]);
+            let mut buff: BitVec<BigEndian, u8> = result.into();
+
+            // shift it one bit to the left to start
+            let mut read_buf_pos = 1;
+            buff = buff << 1;
+            while !value_in_domain(&buff.as_slice()[..self.output_size]) {
+                if read_buf_pos == 0 {
+                    reader.read(&mut read_buf);
+                    buff.as_mut_slice()[self.output_size] = read_buf[0];
+                }
+
+                // Shift bits one to the left
+                buff = buff << 1;
+                read_buf_pos += 1;
+                if read_buf_pos == 8 {
+                    read_buf_pos = 0;
+                }
+            }
+
+            buff.as_slice()[..self.output_size].to_owned()
+        }
     }
 
     pub fn result_below(self, max: &[u8]) -> Vec<u8> {
