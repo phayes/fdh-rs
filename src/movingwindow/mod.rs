@@ -33,21 +33,6 @@ where
         self.inner_hash.input(input);
     }
 
-    /// Get a digest value that is within the domain specified by the passed closure.
-    ///
-    /// # Example
-    /// ```rust
-    /// use sha2::Sha512;
-    /// use fdh::{FullDomainHash, Input, VariableOutput};
-    /// use num_bigint::BigUint;
-    /// use num_integer::Integer;
-    ///
-    /// // Get a full domain hash that is odd
-    /// let mut hasher = FullDomainHash::<Sha512>::new(64).unwrap();
-    /// hasher.input(b"ATTACKATDAWN");
-    ///
-    /// let (digest, iv) = hasher.results_in_domain(0, |digest| BigUint::from_bytes_be(digest).is_odd()).unwrap();
-    /// ```
     pub fn results_in_domain(&self) -> Result<Vec<u8>, ()> {
         let mut all_candidates = self.all_candidates();
 
