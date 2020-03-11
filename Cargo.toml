@@ -14,7 +14,6 @@ categories = ["cryptography", "no-std"]
 digest = "0.8.1"
 failure = {version = "0.1.7", optional = true}
 num-bigint = { version = "0.6", optional=true, features = ["zeroize"], package = "num-bigint-dig" }
-bitvec = "0.17.3"
 subtle = "2.2.2"
 
 # Should use same version as in "digest"

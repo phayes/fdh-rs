@@ -1,5 +1,3 @@
-use bitvec::order::Msb0;
-use bitvec::vec::*;
 use digest::{ExtendableOutput, Input, XofReader};
 use num_bigint::BigUint;
 use std::vec;
@@ -23,10 +21,6 @@ where
     C: Fn(&[u8]) -> Choice,
 {
     pub fn new(iterations: usize, output_size: usize, domain_function: C) -> Self {
-        if iterations % 8 != 0 {
-            panic!("fdh-rs: movingwindow: iterations must be multiple of 8");
-        }
-
         MWFDH {
             iterations: iterations,
             output_size: output_size,
@@ -80,7 +74,7 @@ where
     fn all_candidates(&self) -> Vec<Vec<u8>> {
         let inner_hash = self.inner_hash.clone();
         let mut reader = inner_hash.xof_result();
-        let underlying_size = self.output_size * (self.iterations / 8);
+        let underlying_size = self.output_size * (self.iterations);
         let mut result: Vec<u8> = vec![0x00; underlying_size];
         reader.read(&mut result);
 
@@ -96,13 +90,10 @@ fn compute_candidates(
     num_iterations: usize,
 ) -> Vec<Vec<u8>> {
     // TODO: debug assert input.len(), moving_window_size, and num_iterations all line up
-    let mut underlying_digest: BitVec<Msb0, u8> = input.into();
     let mut all_candidates = Vec::<Vec<u8>>::with_capacity(num_iterations);
 
-    for _ in 0..num_iterations {
-        let u8_view = underlying_digest.as_slice();
-        all_candidates.push(u8_view[0..moving_window_size].iter().cloned().collect());
-        underlying_digest = underlying_digest << 1;
+    for i in 0..num_iterations {
+        all_candidates.push(input[i..moving_window_size + i].iter().cloned().collect());
     }
 
     all_candidates
@@ -138,19 +129,17 @@ fn gt(check: &[u8], min: &BigUint) -> Choice {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use num_bigint::BigUint;
-    use num_traits::Num;
     use sha3::Shake128;
-    use std::dbg;
 
     #[test]
     fn all_candidates_test() {
-        let some_vec = vec![0, 0, 0, 0, 0, 255];
-        let candidates = compute_candidates(some_vec, 5, 8);
+        let input = vec![0, 1, 2, 3, 4, 5, 6, 7];
+        let candidates = compute_candidates(input, 5, 4);
 
-        assert_eq!(candidates[0], vec![0, 0, 0, 0, 0]);
-        assert_eq!(candidates[7], vec![0, 0, 0, 0, 127]);
-        // IF we had shifted one more we would have [0, 0, 0, 0, 255]
+        assert_eq!(candidates[0], vec![0, 1, 2, 3, 4]);
+        assert_eq!(candidates[1], vec![1, 2, 3, 4, 5]);
+        assert_eq!(candidates[2], vec![2, 3, 4, 5, 6]);
+        assert_eq!(candidates[3], vec![3, 4, 5, 6, 7]);
     }
 
     #[test]
@@ -169,7 +158,7 @@ mod tests {
         )
         .unwrap();
 
-        let mut hasher = MWFDH::<Shake128, _>::new(128, 32, |check: _| between(check, &min, &max));
+        let mut hasher = MWFDH::<Shake128, _>::new(2048, 32, |check: _| between(check, &min, &max));
 
         hasher.input(b"ATTACK AT DAWN");
         let result = hasher.results_in_domain().unwrap();
