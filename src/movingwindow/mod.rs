@@ -63,7 +63,7 @@ where
         }
 
         let found_domain: bool = in_domain.into();
-        if (!found_domain) {
+        if !found_domain {
             return Err(());
         }
 
@@ -99,29 +99,17 @@ fn compute_candidates(
     all_candidates
 }
 
-fn left_pad(input: &[u8], size: usize) -> std::vec::Vec<u8> {
-    let n = if input.len() > size {
-        size
-    } else {
-        input.len()
-    };
-
-    let mut out = std::vec![0u8; size];
-    out[size - n..].copy_from_slice(input);
-    out
-}
-
-fn between(check: &[u8], min: &BigUint, max: &BigUint) -> Choice {
+pub fn between(check: &[u8], min: &BigUint, max: &BigUint) -> Choice {
     let check = BigUint::from_bytes_be(check);
     ((&check < max && &check > min) as u8).into()
 }
 
-fn lt(check: &[u8], max: &BigUint) -> Choice {
+pub fn lt(check: &[u8], max: &BigUint) -> Choice {
     let check = BigUint::from_bytes_be(check);
     ((&check < max) as u8).into()
 }
 
-fn gt(check: &[u8], min: &BigUint) -> Choice {
+pub fn gt(check: &[u8], min: &BigUint) -> Choice {
     let check = BigUint::from_bytes_be(check);
     ((&check > min) as u8).into()
 }
@@ -143,7 +131,7 @@ mod tests {
     }
 
     #[test]
-    fn test_results_within() {
+    fn test_results_between() {
         use num_bigint::BigUint;
         use num_traits::Num;
 
@@ -162,9 +150,70 @@ mod tests {
 
         hasher.input(b"ATTACK AT DAWN");
         let result = hasher.results_in_domain().unwrap();
+
         assert_eq!(
-            hex::encode(result),
+            hex::encode(&result),
             "7ebe111e3d443145d87f7b574f67f92be291f19d747a489601e40bd6f3671008"
+        );
+
+        let result_bigint = BigUint::from_bytes_be(&result).to_str_radix(10);
+        assert_eq!(
+            result_bigint,
+            "57327238008737855959412403183414616474281863704162301159073898079241428733960"
+        );
+    }
+
+    #[test]
+    fn test_results_lt() {
+        use num_bigint::BigUint;
+        use num_traits::Num;
+
+        let max = BigUint::from_str_radix(
+            "23372381656167118369940880608146415619543459354936568979731399163319071519847",
+            10,
+        )
+        .unwrap();
+
+        let mut hasher = MWFDH::<Shake128, _>::new(2048, 32, |check: _| lt(check, &max));
+
+        hasher.input(b"ATTACK AT DAWN");
+        let result = hasher.results_in_domain().unwrap();
+        assert_eq!(
+            hex::encode(&result),
+            "111e3d443145d87f7b574f67f92be291f19d747a489601e40bd6f36710080831"
+        );
+
+        let result_bigint = BigUint::from_bytes_be(&result).to_str_radix(10);
+        assert_eq!(
+            result_bigint,
+            "7742746682851442867075436372447051338297254606827936826213800416869211441201"
+        );
+    }
+
+    #[test]
+    fn test_results_gt() {
+        use num_bigint::BigUint;
+        use num_traits::Num;
+
+        let min = BigUint::from_str_radix(
+            "81683095453715361952842063988888814558178328011011413557662527675023521115731",
+            10,
+        )
+        .unwrap();
+
+        let mut hasher = MWFDH::<Shake128, _>::new(2048, 32, |check: _| gt(check, &min));
+
+        hasher.input(b"ATTACK AT DAWN");
+        let result = hasher.results_in_domain().unwrap();
+        assert_eq!(
+            hex::encode(&result),
+            "be111e3d443145d87f7b574f67f92be291f19d747a489601e40bd6f367100808"
+        );
+
+        let result_bigint = BigUint::from_bytes_be(&result).to_str_radix(10);
+        assert_eq!(
+            result_bigint,
+            "85969686335050502239631103859465427904139040394838027751262323288751421261832"
         );
     }
 }
