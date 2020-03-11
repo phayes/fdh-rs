@@ -18,7 +18,7 @@ bitvec = "0.17.3"
 subtle = "2.2.2"
 
 # Should use same version as in "digest"
-generic-array = "0.12.3"
+generic-array = "0.13.2"
 
 [dev-dependencies]
 sha2 = "0.8.1"
