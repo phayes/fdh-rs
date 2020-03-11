@@ -12,18 +12,21 @@ categories = ["cryptography", "no-std"]
 
 [dependencies]
 digest = "0.8.1"
+failure = {version = "0.1.7", optional = true}
+num-bigint = { version = "0.6", optional=true, features = ["zeroize"], package = "num-bigint-dig" }
+bitvec = "0.17.3"
+subtle = "2.2.2"
+
+# Should use same version as in "digest"
 generic-array = "0.12.3"
-failure = {version = "0.1.6", optional = true}
-num-bigint = {version="0.2.6", optional = true}
-bitvec = "0.17.2"
 
 [dev-dependencies]
 sha2 = "0.8.1"
 sha-1 = "0.8.2"
 sha3 = "0.8.2"
-hex = "0.4.1"
+hex = "0.4.2"
 num-traits = "0.2.11"
-num-integer = "0.1.42" 
+num-integer = "0.1.42"
 
 [badges]
 travis-ci = { repository = "phayes/fdh-rs", branch = "master" }

@@ -1,11 +1,11 @@
-Moving Window FDH
------------------
-
-**This experiment has been shown to be very broken and insecure - don't use it**
+Moving Window Full Domain Hash (MWFDH)
+--------------------------------------
 
 This is an experimental Full Domain Hash (FDH) that is constructed of a moving-window applied against an extendable ouput (XOF) hash function. Unlike a regular Full Domain Hash, it is designed to be contant-time. 
 
-This was experiemental, and has been shown to be insecure and broken. 
+## A note on security
+
+Given the output of a MWFDH, the message hashed with a MWFDH is secure against recovery (in the normal way for one-way hash functions), however the moving window does not provide any level of secrecy to the underlying XOF hash digest outside of it's window. This means that the output of the underlying XOF should be considered "exposed" to anyone who has the final output of the MWFDH.  For its intended purpose, this is acceptable, but protocol designers using the MWFDH should be aware of this poroperty of the MWFDH. 
 
 ### Background and Rational
 
