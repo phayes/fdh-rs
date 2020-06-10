@@ -11,7 +11,7 @@ keywords = ["hash", "crypto", "digest"]
 categories = ["cryptography", "no-std"]
 
 [dependencies]
-digest = "0.8.1"
+digest = "0.9.0"
 failure = {version = "0.1.7", optional = true}
 num-bigint = { version = "0.6", optional=true, features = ["zeroize"], package = "num-bigint-dig" }
 subtle = "2.2.2"
