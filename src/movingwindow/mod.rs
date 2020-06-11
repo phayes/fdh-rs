@@ -1,6 +1,5 @@
 use digest::{ExtendableOutput, Update, XofReader};
 use num_bigint::BigUint;
-use secret_integers::U8;
 use std::vec;
 use std::vec::Vec;
 use subtle::Choice;
@@ -13,8 +12,8 @@ where
 {
     iterations: usize,
     output_size: usize,
-    inner_hash: H,
     domain_function: C,
+    inner_hash: H,
 }
 
 impl<H, C> MWFDH<H, C>
@@ -24,10 +23,10 @@ where
 {
     pub fn new(iterations: usize, output_size: usize, domain_function: C) -> Self {
         MWFDH {
-            iterations: iterations,
-            output_size: output_size,
+            iterations,
+            output_size,
+            domain_function,
             inner_hash: H::default(),
-            domain_function: domain_function,
         }
     }
 
@@ -84,34 +83,42 @@ fn compute_candidates(
     all_candidates
 }
 
+// TODO: This is unsafe - move to using secret_integers crate
 pub fn between(check: &[u8], min: &BigUint, max: &BigUint) -> Choice {
     let check = BigUint::from_bytes_be(check);
     Choice::from((&check < max) as u8) & Choice::from((&check > min) as u8)
 }
 
+// TODO: This is unsafe - move to using secret_integers crate
 pub fn lt(check: &[u8], max: &BigUint) -> Choice {
     let check = BigUint::from_bytes_be(check);
     ((&check < max) as u8).into()
 }
 
-// Big endian
-pub fn gt(input: &[u8], min: &[u8]) -> Choice {
-    let shorter_than_min = Choice::from((input.len() < min.len()) as u8);
-
-    let mut gt = Choice::from(0);
-    for (&ai, &bi) in input.iter().zip(min.iter()) {
-        let ai = U8::classify(ai);
-        let bi = U8::classify(bi);
-
-        let greater = ai.comp_gt(bi);
-        if ai.comp_gt(bi) {
-            return Greater;
-        }
-    }
-
+// TODO: This is unsafe - move to using secret_integers crate
+pub fn gt(check: &[u8], min: &BigUint) -> Choice {
     let check = BigUint::from_bytes_be(check);
     ((&check > min) as u8).into()
 }
+
+// WIP for moving to secret_integers
+//pub fn gt(input: &[u8], min: &[u8]) -> Choice {
+//    let shorter_than_min = Choice::from((input.len() < min.len()) as u8);
+//
+//   let mut gt = Choice::from(0);
+//    for (&ai, &bi) in input.iter().zip(min.iter()) {
+//        let ai = U8::classify(ai);
+//        let bi = U8::classify(bi);
+//
+//        let greater = ai.comp_gt(bi);
+//        if ai.comp_gt(bi) {
+//            return Greater;
+//        }
+//    }
+//
+//    let check = BigUint::from_bytes_be(check);
+//    ((&check > min) as u8).into()
+//}
 
 #[cfg(test)]
 mod tests {
