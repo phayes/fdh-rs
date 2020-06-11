@@ -17,7 +17,7 @@ num-bigint = { version = "0.6", optional=true, features = ["zeroize"], package =
 subtle = "2.2.2"
 
 # Should use same version as in "digest"
-generic-array = "0.12.3"
+generic-array = "0.14.2"
 
 [dev-dependencies]
 sha2 = "0.8.1"
