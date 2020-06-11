@@ -11,18 +11,18 @@ keywords = ["hash", "crypto", "digest"]
 categories = ["cryptography", "no-std"]
 
 [dependencies]
-digest = "0.8.1"
-failure = {version = "0.1.7", optional = true}
-num-bigint = { version = "0.6", optional=true, features = ["zeroize"], package = "num-bigint-dig" }
-subtle = "2.2.2"
-
-# Should use same version as in "digest"
-generic-array = "0.12.3"
+digest = "0.9.0"
+failure = { version = "0.1.8", optional = true }
+num-bigint = { version = "0.6", optional = true, features = [
+    "zeroize"
+], package = "num-bigint-dig" }
+subtle = "2.2.3"
+secret_integers = "0.1.6"
 
 [dev-dependencies]
-sha2 = "0.8.1"
-sha-1 = "0.8.2"
-sha3 = "0.8.2"
+sha2 = "0.9.0"
+sha-1 = "0.9.0"
+sha3 = "0.9.0"
 hex = "0.4.2"
 num-traits = "0.2.11"
 num-integer = "0.1.42"

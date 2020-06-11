@@ -1,12 +1,14 @@
-use digest::{ExtendableOutput, Input, XofReader};
+use digest::{ExtendableOutput, Update, XofReader};
 use num_bigint::BigUint;
+use secret_integers::U8;
 use std::vec;
 use std::vec::Vec;
 use subtle::Choice;
+use subtle::ConditionallySelectable;
 
 pub struct MWFDH<H, C>
 where
-    H: ExtendableOutput + Input + Default + Clone,
+    H: ExtendableOutput + Update + Default + Clone,
     C: Fn(&[u8]) -> Choice,
 {
     iterations: usize,
@@ -17,7 +19,7 @@ where
 
 impl<H, C> MWFDH<H, C>
 where
-    H: ExtendableOutput + Input + Default + Clone,
+    H: ExtendableOutput + Update + Default + Clone,
     C: Fn(&[u8]) -> Choice,
 {
     pub fn new(iterations: usize, output_size: usize, domain_function: C) -> Self {
@@ -30,21 +32,18 @@ where
     }
 
     pub fn input(&mut self, input: &[u8]) {
-        self.inner_hash.input(input);
+        self.inner_hash.update(input);
     }
 
     pub fn results_in_domain(&self) -> Result<Vec<u8>, ()> {
         let mut all_candidates = self.all_candidates();
 
-        let mut selection: usize = 0;
+        let mut selection: u32 = 0;
         let mut in_domain: Choice = 0.into();
         for candidate in all_candidates.iter() {
             in_domain |= (self.domain_function)(candidate);
-            if in_domain.into() {
-                selection += 0;
-            } else {
-                selection += 1;
-            }
+            let selection_plus_one = selection + 1;
+            selection.conditional_assign(&selection_plus_one, !in_domain);
         }
 
         let found_domain: bool = in_domain.into();
@@ -52,13 +51,14 @@ where
             return Err(());
         }
 
-        let result: Vec<u8> = all_candidates.remove(selection);
+        // TODO: Check if this is constant-time,
+        let result: Vec<u8> = all_candidates.remove(selection as usize);
         Ok(result)
     }
 
     fn all_candidates(&self) -> Vec<Vec<u8>> {
         let inner_hash = self.inner_hash.clone();
-        let mut reader = inner_hash.xof_result();
+        let mut reader = inner_hash.finalize_xof();
         let underlying_size = self.output_size * (self.iterations);
         let mut result: Vec<u8> = vec![0x00; underlying_size];
         reader.read(&mut result);
@@ -86,7 +86,7 @@ fn compute_candidates(
 
 pub fn between(check: &[u8], min: &BigUint, max: &BigUint) -> Choice {
     let check = BigUint::from_bytes_be(check);
-    ((&check < max && &check > min) as u8).into()
+    Choice::from((&check < max) as u8) & Choice::from((&check > min) as u8)
 }
 
 pub fn lt(check: &[u8], max: &BigUint) -> Choice {
@@ -94,7 +94,21 @@ pub fn lt(check: &[u8], max: &BigUint) -> Choice {
     ((&check < max) as u8).into()
 }
 
-pub fn gt(check: &[u8], min: &BigUint) -> Choice {
+// Big endian
+pub fn gt(input: &[u8], min: &[u8]) -> Choice {
+    let shorter_than_min = Choice::from((input.len() < min.len()) as u8);
+
+    let mut gt = Choice::from(0);
+    for (&ai, &bi) in input.iter().zip(min.iter()) {
+        let ai = U8::classify(ai);
+        let bi = U8::classify(bi);
+
+        let greater = ai.comp_gt(bi);
+        if ai.comp_gt(bi) {
+            return Greater;
+        }
+    }
+
     let check = BigUint::from_bytes_be(check);
     ((&check > min) as u8).into()
 }

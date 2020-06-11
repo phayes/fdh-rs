@@ -11,14 +11,14 @@
 //! # Example
 //! ```
 //! use sha2::Sha256;
-//! use fdh::{FullDomainHash, Input, VariableOutput};
+//! use fdh::{FullDomainHash, Update, VariableOutput};
 //!   
 //! // Expand SHA256 from 256 bits to 1024 bits.
 //! let output_bits = 1024;
 //! let output_bytes = 1024 / 8;
 //! let mut hasher = FullDomainHash::<Sha256>::new(output_bytes).unwrap();
-//! hasher.input(b"ATTACK AT DAWN");
-//! let result = hasher.vec_result();
+//! hasher.update(b"ATTACK AT DAWN");
+//! let result = hasher.finalize_boxed().into_vec();
 //! ```
 //!
 //! # `no_std`
@@ -28,13 +28,13 @@
 //! ```
 //! #![no_std]
 //! use sha2::Sha256;
-//! use fdh::{FullDomainHash, Input, ExtendableOutput, XofReader};
+//! use fdh::{FullDomainHash, Update, ExtendableOutput, XofReader};
 //!
 //! # fn main() {
 //! // Expand SHA256 from 256 bits to 512 bits (and beyond), reading it in 16 byte chunks.
 //! let mut hasher = FullDomainHash::<Sha256>::default();
-//! hasher.input(b"ATTACK AT DAWN");
-//! let mut reader = hasher.xof_result();
+//! hasher.update(b"ATTACK AT DAWN");
+//! let mut reader = hasher.finalize_xof();
 //! let mut read_buf = <[u8; 16]>::default();
 //!
 //! // Read the first 16 bytes into read_buf
@@ -70,13 +70,13 @@
 //!
 //! ```rust
 //! use sha2::Sha512;
-//! use fdh::{FullDomainHash, Input, VariableOutput};
+//! use fdh::{FullDomainHash, Update, VariableOutput};
 //! use num_bigint::BigUint;
 //! use num_integer::Integer;
 //!
 //! // Get a full domain hash that is odd
 //! let mut hasher = FullDomainHash::<Sha512>::new(64).unwrap();
-//! hasher.input(b"ATTACKATDAWN");
+//! hasher.update(b"ATTACKATDAWN");
 //!
 //! fn digest_is_odd(digest: &[u8]) -> bool {
 //!   BigUint::from_bytes_be(digest).is_odd()
@@ -87,22 +87,23 @@
 //! ```
 
 #![no_std]
+use digest::generic_array::GenericArray;
 use digest::Digest;
-pub use digest::{ExtendableOutput, Input, Reset, VariableOutput, XofReader};
+pub use digest::{ExtendableOutput, Reset, Update, VariableOutput, XofReader};
 use failure::Fail;
-use generic_array::GenericArray;
 use num_bigint::BigUint;
 
 #[cfg(feature = "std")]
 extern crate std;
 
-#[cfg(feature = "std")]
-pub mod movingwindow;
+//#[cfg(feature = "std")]
+//pub mod movingwindow;
 
 #[derive(Clone, Debug, Default)]
 pub struct FullDomainHash<H: Digest> {
     output_size: usize,
     inner_hash: H,
+    iv: u8,
     current_suffix: u8,
     read_buf_pos: usize, // Used for digest::XofReader -- TODO split this out
     read_buf: GenericArray<u8, H::OutputSize>, // Used for digest::XofReader -- TODO split this out
@@ -116,7 +117,17 @@ pub enum Error {
     NoDigestWithin,
 }
 
-impl<H: Digest + Clone> FullDomainHash<H> {
+impl<H: Digest + Clone> FullDomainHash<H>
+where
+    H::OutputSize: Clone,
+{
+    fn reset(&mut self) {
+        self.current_suffix = self.iv;
+        self.read_buf_pos = 0;
+        self.read_buf = GenericArray::default();
+        self.inner_hash = H::new();
+    }
+
     /// Create new hasher instance with the given output size and initialization vector.
     ///
     /// The final hash will be `FDH(M) = HASH(M||IV) || HASH(M||IV+1) || ... || HASH(M||IV+N)`
@@ -127,6 +138,7 @@ impl<H: Digest + Clone> FullDomainHash<H> {
         FullDomainHash {
             output_size,
             inner_hash: H::new(),
+            iv,
             current_suffix: iv,
             read_buf: GenericArray::default(),
             read_buf_pos: 0,
@@ -140,10 +152,10 @@ impl<H: Digest + Clone> FullDomainHash<H> {
             let mut inner_hash = self.inner_hash.clone();
 
             // Append the final x00, x01, x02 etc.
-            inner_hash.input([self.current_suffix]);
+            inner_hash.update([self.current_suffix]);
 
             // Fill the buffer
-            self.read_buf = inner_hash.result();
+            self.read_buf = inner_hash.finalize();
 
             // Increment the current suffix
             self.current_suffix = self.current_suffix.wrapping_add(1);
@@ -166,12 +178,12 @@ impl<H: Digest + Clone> FullDomainHash<H> {
     /// # Example
     /// ```rust
     /// use sha2::Sha512;
-    /// use fdh::{FullDomainHash, Input, VariableOutput};
+    /// use fdh::{FullDomainHash, Update, VariableOutput};
     /// use num_bigint::BigUint;
     ///
     /// // Get a full domain hash that is a mere 8 bytes (64 bits) long.
     /// let mut hasher = FullDomainHash::<Sha512>::new(8).unwrap();
-    /// hasher.input(b"ATTACKATDAWN");
+    /// hasher.update(b"ATTACKATDAWN");
     /// let min = BigUint::from(10u64);
     /// let max = BigUint::from(5_000_000_000_000_000_000u64); // about half of u64 max.
     ///
@@ -216,13 +228,13 @@ impl<H: Digest + Clone> FullDomainHash<H> {
     /// # Example
     /// ```rust
     /// use sha2::Sha512;
-    /// use fdh::{FullDomainHash, Input, VariableOutput};
+    /// use fdh::{FullDomainHash, Update, VariableOutput};
     /// use num_bigint::BigUint;
     /// use num_integer::Integer;
     ///
     /// // Get a full domain hash that is odd
     /// let mut hasher = FullDomainHash::<Sha512>::new(64).unwrap();
-    /// hasher.input(b"ATTACKATDAWN");
+    /// hasher.update(b"ATTACKATDAWN");
     ///
     /// let (digest, iv) = hasher.results_in_domain(0, |digest| BigUint::from_bytes_be(digest).is_odd()).unwrap();
     /// ```
@@ -237,12 +249,13 @@ impl<H: Digest + Clone> FullDomainHash<H> {
             let mut hasher = FullDomainHash {
                 output_size: self.output_size,
                 inner_hash: self.inner_hash.clone(),
-                current_suffix: current_suffix,
+                iv: self.iv,
+                current_suffix,
                 read_buf: GenericArray::default(),
                 read_buf_pos: 0,
             };
             hasher.current_suffix = current_suffix;
-            let res = VariableOutput::vec_result(hasher);
+            let res = VariableOutput::finalize_boxed(hasher).into_vec();
             if value_in_domain(&res) {
                 return Ok((res, current_suffix));
             } else {
@@ -258,7 +271,10 @@ impl<H: Digest + Clone> FullDomainHash<H> {
 }
 
 #[cfg(feature = "std")]
-impl<H: Digest + Clone> VariableOutput for FullDomainHash<H> {
+impl<H: Digest + Clone> VariableOutput for FullDomainHash<H>
+where
+    H::OutputSize: Clone,
+{
     /// Create new hasher instance with the given output size.
     fn new(output_size: usize) -> Result<Self, digest::InvalidOutputSize> {
         Ok(FullDomainHash::with_iv(output_size, 0))
@@ -272,9 +288,7 @@ impl<H: Digest + Clone> VariableOutput for FullDomainHash<H> {
     /// Retrieve result via closure and consume hasher.
     ///
     /// Closure is guaranteed to be called, length of the buffer passed to it will be equal to output_size.
-    ///
-    /// You should probably use [`vec_result()`](#method.vec_result) instead.
-    fn variable_result<F: FnOnce(&[u8])>(mut self, f: F) {
+    fn finalize_variable(mut self, f: impl FnOnce(&[u8])) {
         let num_inner = self.output_size / H::output_size();
         let remainder = self.output_size % H::output_size();
 
@@ -291,12 +305,18 @@ impl<H: Digest + Clone> VariableOutput for FullDomainHash<H> {
         }
         f(buf.as_slice());
     }
+
+    fn finalize_variable_reset(&mut self, f: impl FnOnce(&[u8])) {
+        let result = self.clone().finalize_variable(f);
+        self.reset();
+        result
+    }
 }
 
-impl<H: Digest> Input for FullDomainHash<H> {
+impl<H: Digest> Update for FullDomainHash<H> {
     /// Digest input data
-    fn input<B: AsRef<[u8]>>(&mut self, data: B) {
-        self.inner_hash.input(data);
+    fn update(&mut self, data: impl AsRef<[u8]>) {
+        self.inner_hash.update(data);
     }
 }
 
@@ -311,7 +331,7 @@ impl<H: Digest> Reset for FullDomainHash<H> {
 impl<H: Digest> std::io::Write for FullDomainHash<H> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let len = buf.len();
-        self.input(buf);
+        self.update(buf);
         Ok(len)
     }
 
@@ -320,15 +340,27 @@ impl<H: Digest> std::io::Write for FullDomainHash<H> {
     }
 }
 
-impl<H: Digest + Clone> ExtendableOutput for FullDomainHash<H> {
+impl<H: Digest + Clone> ExtendableOutput for FullDomainHash<H>
+where
+    H::OutputSize: Clone,
+{
     type Reader = Self;
 
-    fn xof_result(self) -> Self::Reader {
+    fn finalize_xof(self) -> Self::Reader {
         self
+    }
+
+    fn finalize_xof_reset(&mut self) -> Self::Reader {
+        let reader = self.clone();
+        self.reset();
+        reader
     }
 }
 
-impl<H: Digest + Clone> digest::XofReader for FullDomainHash<H> {
+impl<H: Digest + Clone> digest::XofReader for FullDomainHash<H>
+where
+    H::OutputSize: Clone,
+{
     fn read(&mut self, buffer: &mut [u8]) {
         let dest_len = buffer.len();
         let source_len = self.read_buf.len();
@@ -364,12 +396,12 @@ mod tests {
     #[test]
     #[cfg(feature = "std")]
     fn sha256_std_test() {
-        use crate::{FullDomainHash, Input, Reset, VariableOutput};
+        use crate::{FullDomainHash, Update, VariableOutput};
 
         // echo -n -e 'ATTACK AT DAWN\x00' | shasum -a 256
         let mut hasher = FullDomainHash::<Sha256>::new(256 / 8).unwrap();
-        hasher.input(b"ATTACK AT DAWN");
-        let result = hex::encode(hasher.vec_result());
+        hasher.update(b"ATTACK AT DAWN");
+        let result = hex::encode(hasher.finalize_boxed());
         assert_eq!(
             result,
             "015d53c7925b4434f00286fe2f0eb28378a49300b159b896eb2356a7c4de95f1"
@@ -377,11 +409,11 @@ mod tests {
 
         // Test Reset
         let mut hasher = FullDomainHash::<Sha256>::new(256 / 8).unwrap();
-        hasher.input(b"ATTACK AT DAWN");
+        hasher.update(b"ATTACK AT DAWN");
         hasher.reset();
-        hasher.input(b"ATTACK AT ");
-        hasher.input(b"DAWN");
-        let result = hex::encode(hasher.vec_result());
+        hasher.update(b"ATTACK AT ");
+        hasher.update(b"DAWN");
+        let result = hex::encode(hasher.finalize_boxed());
         assert_eq!(
             result,
             "015d53c7925b4434f00286fe2f0eb28378a49300b159b896eb2356a7c4de95f1"
@@ -389,14 +421,14 @@ mod tests {
 
         // echo -n -e 'ATTACK AT DAWN\x00' | shasum -a 256
         let mut hasher = FullDomainHash::<Sha256>::new(128 / 8).unwrap();
-        hasher.input(b"ATTACK AT DAWN");
-        let result = hex::encode(hasher.vec_result());
+        hasher.update(b"ATTACK AT DAWN");
+        let result = hex::encode(hasher.finalize_boxed());
         assert_eq!(result, "015d53c7925b4434f00286fe2f0eb283");
 
         // echo -n -e 'ATTACK AT DAWN\x00' | shasum -a 256 && echo -n -e 'ATTACK AT DAWN\x01' | shasum -a 256
         let mut hasher = FullDomainHash::<Sha256>::new(264 / 8).unwrap();
-        hasher.input(b"ATTACK AT DAWN");
-        let result = hex::encode(hasher.vec_result());
+        hasher.update(b"ATTACK AT DAWN");
+        let result = hex::encode(hasher.finalize_boxed());
         assert_eq!(
             result,
             "015d53c7925b4434f00286fe2f0eb28378a49300b159b896eb2356a7c4de95f158"
@@ -408,8 +440,8 @@ mod tests {
         // echo -n -e 'ATTACK AT DAWN\x02' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
         // echo -n -e 'ATTACK AT DAWN\x03' | shasum -a 256 | cut -d ' ' -f 1
         let mut hasher = FullDomainHash::<Sha256>::new(1024 / 8).unwrap();
-        hasher.input(b"ATTACK AT DAWN");
-        let result = hex::encode(hasher.vec_result());
+        hasher.update(b"ATTACK AT DAWN");
+        let result = hex::encode(hasher.finalize_boxed());
         assert_eq!(result, "015d53c7925b4434f00286fe2f0eb28378a49300b159b896eb2356a7c4de95f158617fec3b813f834cd86ab0dd26b971c46b7ede451b490279628a265edf0a10691095675808b47c0add4300b3181a31109cbc31a945d05562ceb6cca0fea834d9c456fe1abf34a5a775ed572ce571b1dcca03b984102e666e9ab876876fb3af");
 
         // # Expand SHA256 hash of "ATTACK AT DAWN" to 1024 bits, using 254 as the initial suffix.
@@ -418,19 +450,19 @@ mod tests {
         // echo -n -e 'ATTACK AT DAWN\x00' | shasum -a 256 | cut -d ' ' -f 1 | tr -d '\n' &&\
         // echo -n -e 'ATTACK AT DAWN\x01' | shasum -a 256 | cut -d ' ' -f 1
         let mut hasher = FullDomainHash::<Sha256>::with_iv(1024 / 8, 254);
-        hasher.input(b"ATTACK AT DAWN");
-        let result = hex::encode(hasher.vec_result());
+        hasher.update(b"ATTACK AT DAWN");
+        let result = hex::encode(hasher.finalize_boxed());
         assert_eq!(result, "8b41c68cc83acfa422fb6a0c61c5c7a14eef381768d37375c78caf61d76e62b4a93a562946a7378fc3eca407eb44e81fef2be026e1ee340ba85a06f9b2e4fe84015d53c7925b4434f00286fe2f0eb28378a49300b159b896eb2356a7c4de95f158617fec3b813f834cd86ab0dd26b971c46b7ede451b490279628a265edf0a10");
     }
 
     #[test]
     fn sha256_no_std_test() {
         // Testing with no_std;
-        use crate::{ExtendableOutput, FullDomainHash, Input, XofReader};
+        use crate::{ExtendableOutput, FullDomainHash, Update, XofReader};
 
         let mut hasher = FullDomainHash::<Sha256>::default();
-        hasher.input(b"ATTACK AT DAWN");
-        let mut reader = hasher.xof_result();
+        hasher.update(b"ATTACK AT DAWN");
+        let mut reader = hasher.finalize_xof();
         let mut read_buf = <[u8; 8]>::default();
 
         // 015d53c7925b4434
@@ -455,8 +487,8 @@ mod tests {
 
         // Test with an odd number (21 in the case does not fit nicely into 32)
         let mut hasher = FullDomainHash::<Sha256>::default();
-        hasher.input(b"ATTACK AT DAWN");
-        let mut reader = hasher.xof_result();
+        hasher.update(b"ATTACK AT DAWN");
+        let mut reader = hasher.finalize_xof();
         let mut read_buf = <[u8; 21]>::default();
 
         // 015d53c7925b4434f00286fe2f0eb28378a49300b1
@@ -482,8 +514,8 @@ mod tests {
         // Test where output size is larger than hash output size (21 > 20) using Sha1
         // 1adfc344b75ab9a77d70745f4ebb5a973c5d1f1d20
         let mut hasher = FullDomainHash::<Sha1>::default();
-        hasher.input(b"ATTACK AT DAWN");
-        let mut reader = hasher.xof_result();
+        hasher.update(b"ATTACK AT DAWN");
+        let mut reader = hasher.finalize_xof();
         let mut read_buf = <[u8; 21]>::default();
         reader.read(&mut read_buf);
         assert_eq!(
@@ -497,8 +529,8 @@ mod tests {
         // Test where output size and digest size are the same using Sha1.
         // 1adfc344b75ab9a77d70745f4ebb5a973c5d1f1d
         let mut hasher = FullDomainHash::<Sha1>::default();
-        hasher.input(b"ATTACK AT DAWN");
-        let mut reader = hasher.xof_result();
+        hasher.update(b"ATTACK AT DAWN");
+        let mut reader = hasher.finalize_xof();
         let mut read_buf = <[u8; 20]>::default();
         reader.read(&mut read_buf);
         assert_eq!(
@@ -513,7 +545,7 @@ mod tests {
     #[test]
     #[cfg(feature = "std")]
     fn test_results_within() {
-        use crate::{FullDomainHash, Input, VariableOutput};
+        use crate::{FullDomainHash, Update, VariableOutput};
         use num_bigint::BigUint;
         use num_traits::Num;
 
@@ -529,7 +561,7 @@ mod tests {
         .unwrap();
 
         let mut hasher = FullDomainHash::<Sha256>::new(256 / 8).unwrap();
-        hasher.input(b"ATTACK AT DAWN");
+        hasher.update(b"ATTACK AT DAWN");
         let iv = 0;
         let (result, iv) = hasher.results_between(iv, &min, &max).unwrap();
         assert_eq!(iv, 20);
