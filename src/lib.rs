@@ -88,8 +88,7 @@
 
 #![no_std]
 use digest::generic_array::GenericArray;
-use digest::Digest;
-pub use digest::{ExtendableOutput, Reset, Update, VariableOutput, XofReader};
+pub use digest::{Digest, ExtendableOutput, Reset, Update, VariableOutput, XofReader};
 use failure::Fail;
 use num_bigint::BigUint;
 
