@@ -24,8 +24,8 @@ sha2 = "0.9.0"
 sha-1 = "0.9.0"
 sha3 = "0.9.0"
 hex = "0.4.2"
-num-traits = "0.2.11"
-num-integer = "0.1.42"
+num-traits = "0.2.12"
+num-integer = "0.1.43"
 
 [badges]
 travis-ci = { repository = "phayes/fdh-rs", branch = "master" }
