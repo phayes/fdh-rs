@@ -1,6 +1,6 @@
 [package]
 name = "fdh"
-version = "0.7.3"
+version = "0.8.0"
 authors = ["phayes <patrick.d.hayes@gmail.com>"]
 edition = "2018"
 description = "Full Domain Hash (FDH) for extending the size of a hash digest to an arbitrary length"
@@ -26,11 +26,6 @@ sha3 = "0.9.1"
 hex = "0.4.2"
 num-traits = "0.2.14"
 num-integer = "0.1.44"
-
-[badges]
-travis-ci = { repository = "phayes/fdh-rs", branch = "master" }
-codecov = { repository = "phayes/fdh-rs", branch = "master", service = "github" }
-maintenance = { status = "actively-developed" }
 
 [features]
 default = ["std"]
