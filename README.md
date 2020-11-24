@@ -1,6 +1,6 @@
 ## Full Domain Hash
 
-[![Build Status](https://travis-ci.org/phayes/fdh-rs.svg?branch=master)](https://travis-ci.org/phayes/fdh-rs)
+[![checks](https://github.com/phayes/fdh-rs/workflows/checks/badge.svg)](https://github.com/phayes/fdh-rs/actions)
 [![codecov](https://codecov.io/gh/phayes/fdh-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/phayes/fdh-rs)
 [![docs](https://docs.rs/fdh/badge.svg)](https://docs.rs/fdh)
 [![crates.io](https://meritbadge.herokuapp.com/fdh)](https://crates.io/crates/fdh)
