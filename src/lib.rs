@@ -89,7 +89,6 @@
 #![no_std]
 use digest::generic_array::GenericArray;
 pub use digest::{Digest, ExtendableOutput, Reset, Update, VariableOutput, XofReader};
-use failure::Fail;
 use num_bigint::BigUint;
 
 #[cfg(feature = "std")]
@@ -97,6 +96,9 @@ extern crate std;
 
 #[cfg(feature = "std")]
 pub mod movingwindow;
+
+#[cfg(feature = "std")]
+use thiserror::Error;
 
 #[derive(Clone, Debug, Default)]
 pub struct FullDomainHash<H: Digest> {
@@ -110,9 +112,9 @@ pub struct FullDomainHash<H: Digest> {
 
 /// Error types
 #[cfg(feature = "std")]
-#[derive(Debug, Fail)]
+#[derive(Debug, Error)]
 pub enum Error {
-    #[fail(display = "fdh: Cannot find IV for a digest with the desired range")]
+    #[error("fdh: Cannot find IV for a digest with the desired range")]
     NoDigestWithin,
 }
 
