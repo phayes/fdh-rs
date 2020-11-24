@@ -77,7 +77,7 @@ fn compute_candidates(
     let mut all_candidates = Vec::<Vec<u8>>::with_capacity(num_iterations);
 
     for i in 0..num_iterations {
-        all_candidates.push(input[i..moving_window_size + i].iter().cloned().collect());
+        all_candidates.push(input[i..moving_window_size + i].to_vec());
     }
 
     all_candidates
